@@ -284,7 +284,7 @@ void primary_LW()
   else
   {
 
-    if ((primaryCutoff == LOW) || (counter1 == 1))
+    if(primaryCutoff == LOW)
     {
       alarmSwitch = false;
       difference = 0;
@@ -329,11 +329,12 @@ void secondary_LW()
   else
   {
 
-    if ((secondaryCutoff == LOW) || (counter2 == 1))
+    if(secondaryCutoff == LOW)
     {
       alarmSwitch2 = false;
       difference2 = 0;
       alarmTime2 = 0;
+      counter2 = 0;
       return;
     }
   }
@@ -376,11 +377,12 @@ void Honeywell_alarm()
   else
   {
 
-    if ((alarm == LOW) || (counter3 == 1))
+    if(alarm == LOW)
     {
       alarmSwitch3 = false;
       difference3 = 0;
       alarmTime3 = 0;
+      counter3 = 0;
       return;
     }
   }
@@ -426,6 +428,7 @@ void HPLC()
       alarmSwitch4 = false;
       difference4 = 0;
       alarmTime4 = 0;
+      counter4 = 0;
       return;
     }
   }
