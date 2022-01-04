@@ -200,7 +200,7 @@ void loop()
   hlpcNC = digitalRead(hplcOUT);
   currentMillis = millis();
 
-  resetCounters();
+//  resetCounters();
   primary_LW();
 //  secondary_LW();
 //  Honeywell_alarm();
@@ -263,6 +263,7 @@ void primary_LW()
     if ( difference >= debounceInterval)
     {
       Serial.println(F("Primary low water.  Sending message"));
+      
       sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
@@ -288,6 +289,7 @@ void primary_LW()
       alarmSwitch = false;
       difference = 0;
       alarmTime = 0;
+      counter1 = 0;
       return;
     }
   }
