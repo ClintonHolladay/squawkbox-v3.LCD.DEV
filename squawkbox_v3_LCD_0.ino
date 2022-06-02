@@ -76,14 +76,14 @@ const String hlpcString {"High Limit"};
 const String AlarmString {"FSG Alarm"};
 
 // Twilio end point url (twilio might changes this!)
-String URLheader = "";
+//String URLheader = "";
 char urlHeaderArray[100];
 
 // contacts to recieve text messages
-String conFrom1 = "";
-String conTo1 = "";
-String conTo2 = "";
-String conTo3 = "";
+// String conFrom1 = "";
+// String conTo1 = "";
+// String conTo2 = "";
+// String conTo3 = "";
 
 // holds the phone number to recieve text messages
 char contactFromArray1[25];
@@ -95,14 +95,10 @@ char contactToArray3[25];
 char SetCombody[] = "Body=Setup%20Complete\"\r";
 char LWbody[] = "Body=Low%20Water\"\r";
 char LW2body[] = "Body=Low%20Water2\"\r";
-char REPbody[] = "Body=routine%20timer\"\r";
+char REPbody[] = "Body=Routine%20Timer\"\r";
 char HLPCbody[] = "Body=High%20Pressure%20Alarm\"\r";
-char CHECKbody[] = "Body=good%20check\"\r";
+char CHECKbody[] = "Body=Good%20Check\"\r";
 char BCbody[] = "Body=Boiler%20Down\"\r";
-char fault1[] = "Body=Fault%20Code1%20No%20Purge%20Card\"\r";
-
-//troubleshooting
-unsigned char data = 0;
 
 // in the SMS request function to recieve text messages from the user
 char incomingChar;
@@ -113,8 +109,8 @@ File myFile;
 
 //=======================================================================
 
-void setup() {
-
+void setup() 
+{
   Serial.begin(9600);
   Serial1.begin(19200);
   Serial.println(F("This is squawkbox V3.LCD.0 sketch."));
@@ -315,7 +311,7 @@ void primary_LW()
     if ( difference >= debounceInterval)
     {
       Serial.println(F("Primary low water.  Sending message"));
-      sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
+      //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
       Serial.println(F("message sent or simulated"));
@@ -353,7 +349,7 @@ void secondary_LW()
     if ( difference2 >= debounceInterval)
     {
       Serial.println(F("Secondary low water.  Sending message."));
-      sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LW2body);
+      //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LW2body);
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LW2body);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LW2body);
       Serial.println(F("message sent or simulated"));
@@ -395,7 +391,7 @@ void Honeywell_alarm()
     {
       Serial.println(F("sending alarm message"));
       Serial.println(F("about to enter modbus reading function..."));
-      sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, BCbody);
+      //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, BCbody);
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, BCbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, BCbody);
       delay(100);
@@ -439,7 +435,7 @@ void HPLC()
     if ( difference4 >= debounceInterval)
     {
       Serial.println("Sending HPLC alarm message");
-      sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, HLPCbody);
+      //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, HLPCbody);
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, HLPCbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, HLPCbody);
       Serial.println(F("message sent or simulated"));
@@ -467,14 +463,11 @@ void HPLC()
 
 void sendSMS(char pt1[], char pt2[], char pt3[], char pt4[])
 {
-
   char finalURL[250] = "";
-
   strcpy(finalURL, pt1);
   strcat(finalURL, pt2);
   strcat(finalURL, pt3);
   strcat(finalURL, pt4);
-  delay(500);
   Serial.println(finalURL);
   delay(20);
   Serial1.print("AT+HTTPTERM\r");
@@ -486,7 +479,6 @@ void sendSMS(char pt1[], char pt2[], char pt3[], char pt4[])
   Serial1.print("AT+SAPBR=1,1\r");
   delay(1000);
   getResponse();
-
   Serial1.print("AT+HTTPINIT\r");
   delay(100);
   getResponse();
@@ -500,29 +492,24 @@ void sendSMS(char pt1[], char pt2[], char pt3[], char pt4[])
   delay(5000);
   getResponse();
 }
+
 void getResponse()
 {
-
-  if (Serial1.available())
+unsigned char data {};
+  while (Serial1.available())
   {
-    while (Serial1.available())
-    {
-      data = Serial1.read();
-      Serial.write(data);
-    }
-    data = 0;
+    data = Serial1.read();
+    Serial.write(data);
+    delay(5);
   }
-  delay(500);
 }
 
 void timedmsg()
 {
-
   if (msgswitch == false)
   {
     msgtimer1 = currentMillis;
     msgswitch = true;
-
   }
   difference5 = currentMillis - msgtimer1;
 
@@ -535,74 +522,87 @@ void timedmsg()
   }
 }
 
-
 void SMSRequest() // maybe use a while loop but need to fix the random letters that are recieved
 {
   //add message for changing the operators phone number
   delay(100);
-  if (Serial1.available() > 0) {
-
+  if (Serial1.available() > 0) 
+  {
     incomingChar = Serial1.read();
     Serial.print(incomingChar);
-    if (incomingChar == 'C') {
+    if (incomingChar == 'C') 
+    {
       delay(100);
       Serial.print(incomingChar);
       incomingChar = Serial1.read();
-      if (incomingChar == 'H') {
+      if (incomingChar == 'H') 
+      {
         delay(100);
         Serial.print(incomingChar);
         incomingChar = Serial1.read();
-        if (incomingChar == 'E') {
+        if (incomingChar == 'E') 
+        {
           delay(100);
           Serial.print(incomingChar);
           incomingChar = Serial1.read();
-          if (incomingChar == 'C') {
+          if (incomingChar == 'C') 
+          {
             delay(100);
             Serial.print(incomingChar);
             incomingChar = Serial1.read();
-            if (incomingChar == 'K') {
+            if (incomingChar == 'K') 
+            {
               delay(100);
               Serial.print(incomingChar);
-              incomingChar = "";
               Serial.println(F("GOOD CHECK. SMS SYSTEMS ONLINE"));
               Serial.println(F("SENDING CHECK VERIFICATION MESSAGE")) ;
               sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, CHECKbody);
               Serial.println("verification message sent");
               Serial1.print("AT+CMGD=0,4\r");
               delay(100);
-              return;
-
             }
           }
         }
       }
     }
   }
-  incomingChar = "";
-  return;
 }
 
 void loadContacts()
 //add an endpoint for data logging
 {
-  if (!SD.begin(10)) {
-    Serial.println(F("initialization failed!"));
-    while (1); // remove for LCD version. send text to marshall for troubleshooting info. 
+// contacts to recieve text messages
+String conFrom1 = "";
+String conTo1 = "";
+String conTo2 = "";
+String conTo3 = "";
+String URLheader = "";
+bool SDbegin {true};  
+  while (SDbegin)
+  {
+    if (!SD.begin(10)) Serial.println(F("SD card initialization failed! Remaining in SD.begin while loop"));
+    else SDbegin {false};
   }
-  Serial.println(F("initialization done."));
+  Serial.println(F("SD card initialization done."));
 
-  // load "from" number.  This is the number alert messages will appear to be from
-  // also the number you text back to recieve info from.
+  //------------------load FROM contact number-------------//  
+
+  // This is the number boiler alert messages will appear to be from
+  // also the number you text back to recieve info from the boiler.
   myFile = SD.open("from1.txt");
-  if (myFile) {
-    Serial.println("pull phone number 1 from SD");
+  if (myFile) 
+  {
+    Serial.println("pulling FROM phone number from SD");
     // read from the file until there's nothing else in it:
-    while (myFile.available()) {
-      char c = myFile.read();  / /gets one byte from serial buffer
+    while (myFile.available()) 
+    {
+      char c = myFile.read();  //gets one byte from serial buffer
       conFrom1 += c;
     }
     myFile.close();
-  } else {
+  } 
+  else 
+  {
     // if the file didn't open, print an error:
     Serial.println("error opening from1.txt");
   }
@@ -616,17 +616,21 @@ void loadContacts()
   //------------------load first contact number-------------//
 
   myFile = SD.open("to1.txt");
-  if (myFile) {
-    Serial.println("phone number 1 command");
+  if (myFile) 
+  {
+    Serial.println("pulling phone number 1 from SD");
     // read from the file until there's nothing else in it:
-    while (myFile.available()) {
+    while (myFile.available()) 
+    {
       char c = myFile.read();  //gets one byte from serial buffer
       conTo1 += c;
     }
     myFile.close();
-  } else {
+  } 
+  else 
+  {
     // if the file didn't open, print an error:
-    Serial.println("error opening toContact1.txt");
+    Serial.println("error opening to1.txt");
   }
   conTo1.toCharArray(contactToArray1, 25);
   Serial.print(F("The first phone number TO String is "));
@@ -637,20 +641,23 @@ void loadContacts()
   //------------------load second contact number-------------//
 
   myFile = SD.open("to2.txt");
-  if (myFile) {
-    Serial.println(F("phone number 2 command"));
+  if (myFile) 
+  {
+    Serial.println(F("pulling phone number 2 from SD"));
     // read from the file until there's nothing else in it:
-    while (myFile.available()) {
+    while (myFile.available()) 
+    {
       char c = myFile.read();  //gets one byte from serial buffer
       conTo2 += c;
     }
     myFile.close();
-  } else {
+  } 
+  else 
+  {
     // if the file didn't open, print an error:
     Serial.println(F("error opening to2.txt"));
   }
-
-  conTo1.toCharArray(contactToArray2, 25);
+  conTo2.toCharArray(contactToArray2, 25);
   Serial.print(F("The second phone number TO String is "));
   Serial.println(conTo2);
   Serial.print(F("The second phone number TO char array is "));
@@ -659,19 +666,22 @@ void loadContacts()
   //------------------load third contact number-------------//
 
   myFile = SD.open("to3.txt");
-  if (myFile) {
-    Serial.println(F("loading third contact number"));
+  if (myFile) 
+  {
+    Serial.println(F("pulling phone number 3 from SD"));
     // read from the file until there's nothing else in it:
-    while (myFile.available()) {
+    while (myFile.available()) 
+    {
       char c = myFile.read();  //gets one byte from serial buffer
       conTo3 += c;
     }
     myFile.close();
-  } else {
+  } 
+  else 
+  {
     // if the file didn't open, print an error:
     Serial.println(F("error opening to3.txt"));
   }
-
   conTo3.toCharArray(contactToArray3, 25);
   Serial.print(F("The third phone number TO String is "));
   Serial.println(conTo3);
@@ -679,18 +689,22 @@ void loadContacts()
   Serial.println(contactToArray3);
 
   //------------------load URL header-------------//
-//where the squawkbox sends to Twilio endpoint
 
+  // This is where the squawkbox sends data to the Twilio endpoint
   myFile = SD.open("URL.txt");
-  if (myFile) {
+  if (myFile) 
+  {
     Serial.println(F("loading URL header"));
     // read from the file until there's nothing else in it:
-    while (myFile.available()) {
+    while (myFile.available()) 
+    {
       char c = myFile.read();  //gets one byte from serial buffer
       URLheader += c;
     }
     myFile.close();
-  } else {
+  } 
+  else 
+  {
     // if the file didn't open, print an error:
     Serial.println(F("error opening URL.txt"));
   }
@@ -701,12 +715,12 @@ void loadContacts()
   Serial.println(urlHeaderArray);
 }
 
-void preTransmission() // not sure what the purpose of this is
+void preTransmission() // user designated action required by the MODBUS library
 {
   digitalWrite(MAX485_RE_NEG, 1);
   digitalWrite(MAX485_DE, 1);
 }
-void postTransmission() // also not sure what this does
+void postTransmission() // user designated action required by the MODBUS library
 {
   digitalWrite(MAX485_RE_NEG, 0);
   digitalWrite(MAX485_DE, 0);
@@ -718,7 +732,7 @@ void readModbus() // getting FSG faults from the FSG
   delay(300);
   uint16_t result = node.readHoldingRegisters (0x0000, 1);
 
-  if (result == node.ku8MBSuccess)
+  if (result == node.ku8MBSuccess) // ku8MBSuccess == 0x00
   {
     int alarmRegister = node.getResponseBuffer(result);
     Serial.print("Register response:  ");
@@ -727,13 +741,13 @@ void readModbus() // getting FSG faults from the FSG
     switch (alarmRegister)
     {
       case 1:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, fault1 );
+        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r" );
         break;
       case 15:
         sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code15%20Unexpected%20Flame\"\r" );
         break;
       case 17:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code17%20Main%20Failure\"\r" );
+        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code17%20Main%20Flame%20Failure\"\r" );
         break;
       case 19:
         sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code19%20MainIgn%20Failure\"\r" );
@@ -745,7 +759,7 @@ void readModbus() // getting FSG faults from the FSG
         sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code29%20Interlock\"\r" );
         break;
       default:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Check%20fault%20code\"\r" );
+        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Check%20Fault%20Code\"\r" );
         break;
     }
   }
@@ -764,9 +778,8 @@ void SIMboot()
 
 void initiateSim()
 {
-  //The remainder of the setup is for waking the
-  //SIM module, logging on, and sending the first
-  //test message to verify proper booting
+  //The remainder of the setup is for waking the SIM module, logging on, and sending the first
+  //test message to verify proper booting.
   Serial.println("Hey!  Wake up!");
   Serial1.print("AT\r"); //Toggling this blank AT command elicits a mirror response from the
   //SIM module and helps to activate it.
@@ -779,8 +792,10 @@ void initiateSim()
   getResponse();
   Serial1.print("AT\r");
   getResponse();
-  //SIM MODULE SETUP---
-  Serial1.print("AT+CGDCONT=1,\"IP\",\"super\"\r");  //"super" is the key required to log onto the network using Twilio SuperSIM
+
+  //========   SIM MODULE SETUP   =======//
+
+  Serial1.print("AT+CGDCONT=1,\"IP\",\"super\"\r");//"super" is the key required to log onto the network using Twilio SuperSIM
   delay(500);
   getResponse();
   Serial1.print("AT+COPS=1,2,\"310410\"\r"); //310410 is AT&T's network code https://www.msisdn.net/mccmnc/310410/
@@ -803,11 +818,9 @@ void initiateSim()
   delay(100);
   getResponse();
   //the sendSMS function takes four parameters.
-  sendSMS(urlHeaderArray, contactFromArray1, contactToArray1, SetCombody);
+  //sendSMS(urlHeaderArray, contactFromArray1, contactToArray1, SetCombody);
   sendSMS(urlHeaderArray, contactFromArray1, contactToArray2, SetCombody);
   //sendSMS(urlHeaderArray, contactFromArray1, contactToArray3, SetCombody);
   delay(2000);
-
   Serial.println(F("Setup complete. Entering main loop"));
-
 }
