@@ -4,14 +4,14 @@
 #include <LiquidCrystal_I2C.h>
 
 //The following const int pins are all pre-run in the PCB:
-const int low1 = 5;  //to screw terminal
-const int low2 = 6;   //to screw terminal
-const int alarmPin = 4;   //to screw terminal //honeywell alarm terminal (terminal 3 on honeywell programmer)
+const int low1 {5};  //to screw terminal
+const int low2 {6};   //to screw terminal
+const int alarmPin {4};   //to screw terminal //honeywell alarm terminal (terminal 3 on honeywell programmer)
 const int hplcIN {14};
 const int hplcOUT {15};
-const int MAX485_DE = 3;  //to modbus module
-const int MAX485_RE_NEG = 2;   //to modbus module
-const int SIMpin = A3;  // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
+const int MAX485_DE {3};  //to modbus module
+const int MAX485_RE_NEG {2};   //to modbus module
+const int SIMpin {A3};  // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
 
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 const int PLWCOoutletPin {17};
@@ -19,28 +19,14 @@ const int SLWCOoutletPin {16};
 
 // to prevent false alarms from electrical noise and also prevents repeat messages from trivial PLWCOs.   
 // Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
-const int debounceInterval = 3000; //NEEDS TO BE MADE CHANGEABLE ON SD CARD
+const int debounceInterval {3000}; //NEEDS TO BE MADE CHANGEABLE ON SD CARD
 
 unsigned long currentMillis {}; // may not be needed
 
-// debounce timer math
-unsigned long difference {};
-unsigned long difference2 {};
-unsigned long difference3 {};
-unsigned long difference4 {};
-unsigned long difference5 {};
-unsigned long ClearScreendifference {};
-unsigned long alarmTime {};
-unsigned long alarmTime2 {};
-unsigned long alarmTime3 {};
-unsigned long alarmTime4 {};
-unsigned long ClearScreenTime {};
-unsigned long msgtimer1 = 0;
-
 // messages based on time
-unsigned long fifmintimer = 900000;
-unsigned long fivmintimer = 300000;
-unsigned long dailytimer = 86400000;
+const unsigned long fifmintimer {900000};
+const unsigned long fivmintimer {300000};
+const unsigned long dailytimer {86400000};
 
 // variables indicating whether or not an alarm message has been sent or not
 bool PLWCOSent{};
@@ -60,11 +46,11 @@ bool PLWCOoutlet{};
 bool SLWCOoutlet{};
 
 // variables storing whether the particular timer been activated or not? 
-bool alarmSwitch = false;
-bool alarmSwitch2 = false;
-bool alarmSwitch3 = false;
-bool alarmSwitch4 = false;
-bool msgswitch = false;
+bool alarmSwitch {false};
+bool alarmSwitch2 {false};
+bool alarmSwitch3 {false};
+bool alarmSwitch4 {false};
+bool msgswitch {false};
 
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 bool ClearScreenSwitch {};
@@ -92,16 +78,13 @@ char contactToArray2[25];
 char contactToArray3[25];
 
 // message to be sent
-char SetCombody[] = "Body=Setup%20Complete\"\r";
-char LWbody[] = "Body=Low%20Water\"\r";
-char LW2body[] = "Body=Low%20Water2\"\r";
-char REPbody[] = "Body=Routine%20Timer\"\r";
-char HLPCbody[] = "Body=High%20Pressure%20Alarm\"\r";
-char CHECKbody[] = "Body=Good%20Check\"\r";
-char BCbody[] = "Body=Boiler%20Down\"\r";
-
-// in the SMS request function to recieve text messages from the user
-char incomingChar;
+const char SetCombody[] = "Body=Setup%20Complete\"\r";
+const char LWbody[] = "Body=Low%20Water\"\r";
+const char LW2body[] = "Body=Low%20Water2\"\r";
+const char REPbody[] = "Body=Routine%20Timer\"\r";
+const char HLPCbody[] = "Body=High%20Pressure%20Alarm\"\r";
+const char CHECKbody[] = "Body=Good%20Check\"\r";
+const char BCbody[] = "Body=Boiler%20Down\"\r";
 
 ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
@@ -154,6 +137,8 @@ void setup()
 
 void loop()
 {
+  static unsigned long ClearScreendifference {};
+  static unsigned long ClearScreenTime {};
   primaryCutoff = digitalRead(low1);
   secondaryCutoff = digitalRead(low2);
   alarm = digitalRead(alarmPin);
@@ -298,6 +283,8 @@ void print_alarms()
 
 void primary_LW()
 {
+  static unsigned long difference {};
+  static unsigned long alarmTime {};
   if ((primaryCutoff == HIGH) && (PLWCOSent == 0))
   {
     if (alarmSwitch == false)
@@ -336,6 +323,8 @@ void primary_LW()
 
 void secondary_LW()
 {
+  static unsigned long difference2 {};
+  static unsigned long alarmTime2 {};
   if ((secondaryCutoff == HIGH) && (SLWCOSent == 0))
   {
     if (alarmSwitch2 == false)
@@ -376,6 +365,8 @@ void secondary_LW()
 }
 void Honeywell_alarm()
 {
+  static unsigned long difference3 {};
+  static unsigned long alarmTime3 {};
   if (alarm == HIGH && HWAlarmSent == 0)
   {
     if (alarmSwitch3 == false)
@@ -422,6 +413,8 @@ void Honeywell_alarm()
 
 void HPLC()
 {
+  static unsigned long difference4 {};
+  static unsigned long alarmTime4 {};
   if ((hlpcCOMMON == HIGH) && (hlpcNC == LOW) && (hlpcSent == 0))
   {
     if (alarmSwitch4 == false)
@@ -506,6 +499,8 @@ unsigned char data {};
 
 void timedmsg()
 {
+  static unsigned long difference5 {};
+  static unsigned long msgtimer1 {};
   if (msgswitch == false)
   {
     msgtimer1 = currentMillis;
@@ -524,6 +519,7 @@ void timedmsg()
 
 void SMSRequest() // maybe use a while loop but need to fix the random letters that are recieved
 {
+  char incomingChar {};
   //add message for changing the operators phone number
   delay(100);
   if (Serial1.available() > 0) 
@@ -581,7 +577,7 @@ bool SDbegin {true};
   while (SDbegin)
   {
     if (!SD.begin(10)) Serial.println(F("SD card initialization failed! Remaining in SD.begin while loop"));
-    else SDbegin {false};
+    else SDbegin = false;
   }
   Serial.println(F("SD card initialization done."));
 
