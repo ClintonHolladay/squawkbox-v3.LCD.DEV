@@ -4,14 +4,14 @@
 #include <LiquidCrystal_I2C.h>
 
 //The following const int pins are all pre-run in the PCB:
-const int low1 {5};  //to screw terminal
-const int low2 {6};   //to screw terminal
-const int alarmPin {4};   //to screw terminal //honeywell alarm terminal (terminal 3 on honeywell programmer)
-const int hplcIN {14};
-const int hplcOUT {15};
-const int MAX485_DE {3};  //to modbus module
-const int MAX485_RE_NEG {2};   //to modbus module
-const int SIMpin {A3};  // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
+const int low1 {5};         //to screw terminal
+const int low2 {6};         //to screw terminal
+const int alarmPin {4};     //to screw terminal //honeywell alarm terminal (terminal 3 on honeywell programmer)
+const int hplcIN {14};      //to screw terminal
+const int hplcOUT {15};     //to screw terminal
+const int MAX485_DE {3};    //to modbus module
+const int MAX485_RE_NEG {2};//to modbus module
+const int SIMpin {A3};      // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
 
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 const int PLWCOoutletPin {17};
@@ -21,61 +21,16 @@ const int SLWCOoutletPin {16};
 // Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
 const int debounceInterval {3000}; //NEEDS TO BE MADE CHANGEABLE ON SD CARD
 
-unsigned long currentMillis {}; // may not be needed
-
 // messages based on time
 const unsigned long fifmintimer {900000};
 const unsigned long fivmintimer {300000};
 const unsigned long dailytimer {86400000};
-
-// variables indicating whether or not an alarm message has been sent or not
-bool PLWCOSent{};
-bool SLWCOSent{};
-bool HWAlarmSent{};
-bool hlpcSent{};
-
-// state-reading variables
-bool alarm{};
-bool primaryCutoff{};
-bool secondaryCutoff{};
-bool hlpcCOMMON{};
-bool hlpcNC{};
-
-// Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator 
-bool PLWCOoutlet{}; 
-bool SLWCOoutlet{};
-
-// variables storing whether the particular timer been activated or not? 
-bool alarmSwitch {false};
-bool alarmSwitch2 {false};
-bool alarmSwitch3 {false};
-bool alarmSwitch4 {false};
-bool msgswitch {false};
-
-// Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
-bool ClearScreenSwitch {};
 
 // alarm text printed to the LCD screen
 const String PrimaryString {"Primary Low Water"};
 const String SecondaryString {"Secondary Low Water"};
 const String hlpcString {"High Limit"};
 const String AlarmString {"FSG Alarm"};
-
-// Twilio end point url (twilio might changes this!)
-//String URLheader = "";
-char urlHeaderArray[100];
-
-// contacts to recieve text messages
-// String conFrom1 = "";
-// String conTo1 = "";
-// String conTo2 = "";
-// String conTo3 = "";
-
-// holds the phone number to recieve text messages
-char contactFromArray1[25];
-char contactToArray1[25];
-char contactToArray2[25];
-char contactToArray3[25];
 
 // message to be sent
 const char SetCombody[] = "Body=Setup%20Complete\"\r";
@@ -85,6 +40,28 @@ const char REPbody[] = "Body=Routine%20Timer\"\r";
 const char HLPCbody[] = "Body=High%20Pressure%20Alarm\"\r";
 const char CHECKbody[] = "Body=Good%20Check\"\r";
 const char BCbody[] = "Body=Boiler%20Down\"\r";
+
+// variables indicating whether or not an alarm message has been sent or not
+static bool PLWCOSent{};
+static bool SLWCOSent{};
+static bool HWAlarmSent{};
+static bool hlpcSent{};
+
+// variables storing whether the particular timer been activated or not? 
+bool alarmSwitch {false};
+bool alarmSwitch2 {false};
+bool alarmSwitch3 {false};
+bool alarmSwitch4 {false};
+bool msgswitch {false};
+
+// Twilio end point url (twilio might changes this!)
+static char urlHeaderArray[100];
+
+// holds the phone number to recieve text messages
+static char contactFromArray1[25];
+static char contactToArray1[25];
+static char contactToArray2[25];
+static char contactToArray3[25];
 
 ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
@@ -137,16 +114,9 @@ void setup()
 
 void loop()
 {
-  static unsigned long ClearScreendifference {};
-  static unsigned long ClearScreenTime {};
-  primaryCutoff = digitalRead(low1);
-  secondaryCutoff = digitalRead(low2);
-  alarm = digitalRead(alarmPin);
-  hlpcCOMMON = digitalRead(hplcIN);
-  hlpcNC = digitalRead(hplcOUT);
-  PLWCOoutlet = digitalRead(PLWCOoutletPin);
-  SLWCOoutlet = digitalRead(SLWCOoutletPin);
-  currentMillis = millis(); //??why isnt this used in the funtcions??
+  static bool ClearScreenSwitch {};              // to be put into the complete LCD function
+  static unsigned long ClearScreendifference {}; // to be put into the complete LCD function
+  static unsigned long ClearScreenTime {};       // to be put into the complete LCD function
 
   if (ClearScreenSwitch == false)
     {
@@ -283,17 +253,21 @@ void print_alarms()
 
 void primary_LW()
 {
+  static bool primaryCutoff{}; 
+  static bool PLWCOoutlet{}; // added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
   static unsigned long difference {};
   static unsigned long alarmTime {};
+  primaryCutoff = digitalRead(low1);
+  PLWCOoutlet = digitalRead(PLWCOoutletPin);
   if ((primaryCutoff == HIGH) && (PLWCOSent == 0))
   {
     if (alarmSwitch == false)
     {
-      alarmTime = currentMillis; 
+      alarmTime = millis(); 
       alarmSwitch = true;
       Serial.println("alarmSwitch is true");
     }
-    difference = currentMillis - alarmTime;
+    difference = millis() - alarmTime;
 
     if ( difference >= debounceInterval)
     {
@@ -323,17 +297,21 @@ void primary_LW()
 
 void secondary_LW()
 {
+  static bool secondaryCutoff{};
+  static bool SLWCOoutlet{}; // added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator 
   static unsigned long difference2 {};
   static unsigned long alarmTime2 {};
+  secondaryCutoff = digitalRead(low2);
+  SLWCOoutlet = digitalRead(SLWCOoutletPin);
   if ((secondaryCutoff == HIGH) && (SLWCOSent == 0))
   {
     if (alarmSwitch2 == false)
     {
-      alarmTime2 = currentMillis;
+      alarmTime2 = millis();
       alarmSwitch2 = true;
       Serial.println(F("alarmSwitch2 is true"));
     }
-    difference2 = currentMillis - alarmTime2;
+    difference2 = millis() - alarmTime2;
 
     if ( difference2 >= debounceInterval)
     {
@@ -365,18 +343,20 @@ void secondary_LW()
 }
 void Honeywell_alarm()
 {
+  static bool alarm{};
   static unsigned long difference3 {};
   static unsigned long alarmTime3 {};
+  alarm = digitalRead(alarmPin);
   if (alarm == HIGH && HWAlarmSent == 0)
   {
     if (alarmSwitch3 == false)
     {
-      alarmTime3 = currentMillis;
+      alarmTime3 = millis();
       alarmSwitch3 = true;
       Serial.println("HW alarmSwitch is true");
     }
     
-    difference3 = currentMillis - alarmTime3;
+    difference3 = millis() - alarmTime3;
 
     if ( difference3 >= debounceInterval)
     {
@@ -413,17 +393,21 @@ void Honeywell_alarm()
 
 void HPLC()
 {
+  static bool hlpcCOMMON{};
+  static bool hlpcNC{};
   static unsigned long difference4 {};
   static unsigned long alarmTime4 {};
+  hlpcCOMMON = digitalRead(hplcIN);
+  hlpcNC = digitalRead(hplcOUT);
   if ((hlpcCOMMON == HIGH) && (hlpcNC == LOW) && (hlpcSent == 0))
   {
     if (alarmSwitch4 == false)
     {
-      alarmTime4 = currentMillis;
+      alarmTime4 = millis();
       alarmSwitch4 = true;
       Serial.println("alarmSwitch is true");
     }
-    difference4 = currentMillis - alarmTime4;
+    difference4 = millis() - alarmTime4;
 
     if ( difference4 >= debounceInterval)
     {
@@ -503,10 +487,10 @@ void timedmsg()
   static unsigned long msgtimer1 {};
   if (msgswitch == false)
   {
-    msgtimer1 = currentMillis;
+    msgtimer1 = millis();
     msgswitch = true;
   }
-  difference5 = currentMillis - msgtimer1;
+  difference5 = millis() - msgtimer1;
 
   if (difference5 >= dailytimer)
   {
@@ -737,31 +721,39 @@ void readModbus() // getting FSG faults from the FSG
     switch (alarmRegister)
     {
       case 1:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r" );
+        //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
+        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
         break;
       case 15:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code15%20Unexpected%20Flame\"\r" );
+        //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code15%20Unexpected%20Flame\"\r");
+        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code15%20Unexpected%20Flame\"\r");
         break;
       case 17:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code17%20Main%20Flame%20Failure\"\r" );
+        //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code17%20Main%20Flame%20Failure\"\r");
+        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code17%20Main%20Flame%20Failure\"\r");
         break;
       case 19:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code19%20MainIgn%20Failure\"\r" );
+        //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code19%20MainIgn%20Failure\"\r");
+        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code19%20MainIgn%20Failure\"\r");
         break;
       case 28:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code28%20Pilot%20Failure\"\r" );
+       // sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code28%20Pilot%20Failure\"\r");
+        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code28%20Pilot%20Failure\"\r");
         break;
       case 29:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code29%20Interlock\"\r" );
+       // sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code29%20Interlock\"\r");
+        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code29%20Interlock\"\r");
         break;
       default:
-        sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Check%20Fault%20Code\"\r" );
+       // sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Check%20Fault%20Code\"\r");
+        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Check%20Fault%20Code\"\r");
         break;
     }
   }
   else
   {
-    sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Modbus%20Com%20Fail\"\r");
+    //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Modbus%20Com%20Fail\"\r");
+    sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Modbus%20Com%20Fail\"\r");
   }
 }
 
