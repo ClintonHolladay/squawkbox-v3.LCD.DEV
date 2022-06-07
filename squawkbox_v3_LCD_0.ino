@@ -12,26 +12,16 @@ const int hplcOUT {15};     //to screw terminal
 const int MAX485_DE {3};    //to modbus module
 const int MAX485_RE_NEG {2};//to modbus module
 const int SIMpin {A3};      // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
-
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 const int PLWCOoutletPin {17};
 const int SLWCOoutletPin {16};
-
-// to prevent false alarms from electrical noise and also prevents repeat messages from trivial PLWCOs.   
-// Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
-const int debounceInterval {3000}; //NEEDS TO BE MADE CHANGEABLE ON SD CARD
-
-// messages based on time
-const unsigned long fifmintimer {900000};
-const unsigned long fivmintimer {300000};
-const unsigned long dailytimer {86400000};
-
-// alarm text printed to the LCD screen
-const String PrimaryString {"Primary Low Water"};
-const String SecondaryString {"Secondary Low Water"};
-const String hlpcString {"High Limit"};
-const String AlarmString {"FSG Alarm"};
-
+const int debounceInterval {3000};//NEEDS TO BE MADE CHANGEABLE ON SD CARD
+                                  // to prevent false alarms from electrical noise and also prevents repeat messages from bouncing PLWCOs.   
+                                  // Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
+const String PrimaryString {"Primary Low Water"};     // ====================================//
+const String SecondaryString {"Secondary Low Water"}; // alarm text printed to the LCD screen//
+const String hlpcString {"High Limit"};               // alarm text printed to the LCD screen//
+const String AlarmString {"FSG Alarm"};               // ====================================//
 // message to be sent
 const char SetCombody[] = "Body=Setup%20Complete\"\r";
 const char LWbody[] = "Body=Low%20Water\"\r";
@@ -40,34 +30,27 @@ const char REPbody[] = "Body=Routine%20Timer\"\r";
 const char HLPCbody[] = "Body=High%20Pressure%20Alarm\"\r";
 const char CHECKbody[] = "Body=Good%20Check\"\r";
 const char BCbody[] = "Body=Boiler%20Down\"\r";
-
 // variables indicating whether or not an alarm message has been sent or not
 static bool PLWCOSent{};
 static bool SLWCOSent{};
 static bool HWAlarmSent{};
 static bool hlpcSent{};
-
-// variables storing whether the particular timer been activated or not? 
-bool alarmSwitch {false};
-bool alarmSwitch2 {false};
-bool alarmSwitch3 {false};
-bool alarmSwitch4 {false};
-bool msgswitch {false};
-
 // Twilio end point url (twilio might changes this!)
 static char urlHeaderArray[100];
-
 // holds the phone number to recieve text messages
 static char contactFromArray1[25];
 static char contactToArray1[25];
 static char contactToArray2[25];
 static char contactToArray3[25];
 
+//================INSTANTIATION================//
 ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 File myFile;
 
-//=======================================================================
+//=======================================================================//
+//================================SETUP()================================//
+//=======================================================================//
 
 void setup() 
 {
@@ -110,7 +93,9 @@ void setup()
   Serial.println(F("Setup() Function complete. Entering Main Loop() Function"));
 }
 
-//=========================================================================
+//=======================================================================//
+//================================LOOP()=================================//
+//=======================================================================//
 
 void loop()
 {
@@ -141,6 +126,10 @@ void loop()
   timedmsg();
   SMSRequest();
 }
+
+//=======================================================================//
+//=======================FUNCTION DECLARATIONS===========================//
+//=======================================================================//
 
 void print_alarms()
 {
@@ -253,6 +242,7 @@ void print_alarms()
 
 void primary_LW()
 {
+  static bool alarmSwitch {false};
   static bool primaryCutoff{}; 
   static bool PLWCOoutlet{}; // added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
   static unsigned long difference {};
@@ -297,6 +287,7 @@ void primary_LW()
 
 void secondary_LW()
 {
+  static bool alarmSwitch2 {false};
   static bool secondaryCutoff{};
   static bool SLWCOoutlet{}; // added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator 
   static unsigned long difference2 {};
@@ -343,6 +334,7 @@ void secondary_LW()
 }
 void Honeywell_alarm()
 {
+  static bool alarmSwitch3 {false};
   static bool alarm{};
   static unsigned long difference3 {};
   static unsigned long alarmTime3 {};
@@ -393,6 +385,7 @@ void Honeywell_alarm()
 
 void HPLC()
 {
+  static bool alarmSwitch4 {false};
   static bool hlpcCOMMON{};
   static bool hlpcNC{};
   static unsigned long difference4 {};
@@ -470,7 +463,7 @@ void sendSMS(char pt1[], char pt2[], char pt3[], char pt4[])
   getResponse();
 }
 
-void getResponse()
+void getResponse() // serial monitor printing for troubleshooting
 {
 unsigned char data {};
   while (Serial1.available())
@@ -481,8 +474,12 @@ unsigned char data {};
   }
 }
 
-void timedmsg()
+void timedmsg() // daily timer message to ensure Squawk is still operational
 {
+  static bool msgswitch {false};
+  static const unsigned long fifmintimer {900000};
+  static const unsigned long fivmintimer {300000};
+  static const unsigned long dailytimer {86400000};  
   static unsigned long difference5 {};
   static unsigned long msgtimer1 {};
   if (msgswitch == false)
@@ -696,7 +693,7 @@ bool SDbegin {true};
 }
 
 void preTransmission() // user designated action required by the MODBUS library
-{
+{                      // writing these terminals to HIGH / LOW tells the RS-485 board to send or recieve
   digitalWrite(MAX485_RE_NEG, 1);
   digitalWrite(MAX485_DE, 1);
 }
@@ -757,7 +754,7 @@ void readModbus() // getting FSG faults from the FSG
   }
 }
 
-void SIMboot()
+void SIMboot() // starts up the SIM module
 {
   digitalWrite(SIMpin, HIGH);
   delay(3000);
@@ -805,7 +802,6 @@ void initiateSim()
   Serial1.print("AT+CNMI=2,2,0,0,0\r"); //
   delay(100);
   getResponse();
-  //the sendSMS function takes four parameters.
   //sendSMS(urlHeaderArray, contactFromArray1, contactToArray1, SetCombody);
   sendSMS(urlHeaderArray, contactFromArray1, contactToArray2, SetCombody);
   //sendSMS(urlHeaderArray, contactFromArray1, contactToArray3, SetCombody);
