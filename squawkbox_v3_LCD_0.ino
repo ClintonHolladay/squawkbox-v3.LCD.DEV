@@ -57,15 +57,12 @@ void setup()
   Serial.begin(9600);
   Serial1.begin(19200);
   Serial.println(F("This is squawkbox V3.LCD.0 sketch."));
-  // LCD initialization
-  lcd.init();
+  lcd.init(); // LCD initialization
   lcd.backlight();
   lcd.begin(20, 4); // initialize LCD screen (columns, rows)
   lcd.setCursor(2, 1);
   lcd.print("AB3D Squawk Box");
   delay(2000);
-  lcd.clear();
-  lcd.noBacklight();
   
   pinMode(low1, INPUT);
   pinMode(low2, INPUT);
@@ -84,6 +81,11 @@ void setup()
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
 
+  lcd.clear();
+  lcd.setCursor(2, 1);
+  lcd.print("Initializing SIM");
+  lcd.setCursor(7, 2);
+  lcd.print("Module");
   SIMboot();
   delay(8000); // Give time for the SIM module to turn on and wake up
   loadContacts(); //run the SD card function.
@@ -91,6 +93,8 @@ void setup()
   delay(2000);
   initiateSim();
   Serial.println(F("Setup() Function complete. Entering Main Loop() Function"));
+  lcd.clear();
+  lcd.noBacklight();
 }
 
 //=======================================================================//
@@ -115,9 +119,7 @@ void loop()
     {
       lcd.clear();
       print_alarms();
-      ClearScreendifference = 0;
       ClearScreenSwitch = false;
-      //ClearScreenTime = 0;
     }
   primary_LW();
   secondary_LW();
@@ -135,7 +137,6 @@ void print_alarms()
 {
   if (!PLWCOSent && !SLWCOSent && !HWAlarmSent && !hlpcSent)
   {
-    //lcd.clear();
     lcd.noBacklight();
     lcd.setCursor(6, 1);
     lcd.print("No Alarm");
