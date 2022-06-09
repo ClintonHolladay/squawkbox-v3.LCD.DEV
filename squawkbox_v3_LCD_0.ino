@@ -103,24 +103,7 @@ void setup()
 
 void loop()
 {
-  static bool ClearScreenSwitch {};              // to be put into the complete LCD function
-  static unsigned long ClearScreendifference {}; // to be put into the complete LCD function
-  static unsigned long ClearScreenTime {};       // to be put into the complete LCD function
-
-  if (ClearScreenSwitch == false)
-    {
-      ClearScreenTime = millis(); 
-      ClearScreenSwitch = true;
-    }
-    
-  ClearScreendifference = millis() - ClearScreenTime;
-
-  if ( ClearScreendifference >= debounceInterval)
-    {
-      lcd.clear();
-      print_alarms();
-      ClearScreenSwitch = false;
-    }
+  print_alarms();
   primary_LW();
   secondary_LW();
   Honeywell_alarm();
@@ -135,109 +118,126 @@ void loop()
 
 void print_alarms()
 {
-  if (!PLWCOSent && !SLWCOSent && !HWAlarmSent && !hlpcSent)
+  static bool ClearScreenSwitch {false};              // to be put into the complete LCD function
+  static unsigned long ClearScreendifference {}; // to be put into the complete LCD function
+  static unsigned long ClearScreenTime {};       // to be put into the complete LCD function
+  
+  if (ClearScreenSwitch == false)
   {
-    lcd.noBacklight();
-    lcd.setCursor(6, 1);
-    lcd.print("No Alarm");
+    ClearScreenTime = millis(); 
+    ClearScreenSwitch = true;
   }
-  else if (PLWCOSent && SLWCOSent && hlpcSent && HWAlarmSent )
+    
+  ClearScreendifference = millis() - ClearScreenTime;
+
+  if ( ClearScreendifference >= debounceInterval)
   {
-     lcd.print(PrimaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(SecondaryString);
-     lcd.setCursor(0, 2);
-     lcd.print(hlpcString);
-     lcd.setCursor(0, 3);
-     lcd.print(AlarmString); 
-  }
-  else if (SLWCOSent && hlpcSent && HWAlarmSent)
-  {
-     lcd.print(SecondaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(hlpcString);
-     lcd.setCursor(0, 2);
-     lcd.print(AlarmString); 
-  }
-  else if (PLWCOSent && SLWCOSent && hlpcSent)
-  {
-     lcd.print(PrimaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(SecondaryString);
-     lcd.setCursor(0, 2);
-     lcd.print(hlpcString); 
-  }
-  else if (PLWCOSent && SLWCOSent && HWAlarmSent)
-  {
-     lcd.print(PrimaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(SecondaryString);
-     lcd.setCursor(0, 2);
-     lcd.print(AlarmString);  
-  }
-  else if (PLWCOSent && hlpcSent && HWAlarmSent)
-  {
-     lcd.print(PrimaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(hlpcString);
-     lcd.setCursor(0, 2);
-     lcd.print(AlarmString); 
-  }
-  else if (PLWCOSent && SLWCOSent)
-  {
-     lcd.print(PrimaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(SecondaryString);
-  }
-  else if (PLWCOSent && hlpcSent)
-  {
-     lcd.print(PrimaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(hlpcString);
-  }
-  else if (PLWCOSent && HWAlarmSent)
-  {
-     lcd.print(PrimaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(AlarmString);
-  }
-  else if (SLWCOSent && hlpcSent)
-  {
-     lcd.print(SecondaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(hlpcString);
-  }
-  else if (SLWCOSent && HWAlarmSent)
-  {
-     lcd.print(SecondaryString);
-     lcd.setCursor(0, 1);
-     lcd.print(AlarmString);
-  }
-  else if (hlpcSent && HWAlarmSent)
-  {
-     lcd.print(hlpcString);
-     lcd.setCursor(0, 1);
-     lcd.print(AlarmString);
-  }
-  else if (PLWCOSent)
-  {
-    lcd.backlight();
-    lcd.print(PrimaryString);
-  }
-  else if (SLWCOSent)
-  {
-    lcd.backlight();
-    lcd.print(SecondaryString);
-  }
-  else if (HWAlarmSent)
-  {
-    lcd.backlight();
-    lcd.print(AlarmString);
-  }
-  else if (hlpcSent)
-  {
-    lcd.backlight();
-    lcd.print(hlpcString);
+    lcd.clear();
+    if (!PLWCOSent && !SLWCOSent && !HWAlarmSent && !hlpcSent)
+    {
+      lcd.noBacklight();
+      lcd.setCursor(6, 1);
+      lcd.print("No Alarm");
+    }
+    else if (PLWCOSent && SLWCOSent && hlpcSent && HWAlarmSent )
+    {
+      lcd.print(PrimaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(SecondaryString);
+      lcd.setCursor(0, 2);
+      lcd.print(hlpcString);
+      lcd.setCursor(0, 3);
+      lcd.print(AlarmString); 
+    }
+    else if (SLWCOSent && hlpcSent && HWAlarmSent)
+    {
+      lcd.print(SecondaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(hlpcString);
+      lcd.setCursor(0, 2);
+      lcd.print(AlarmString); 
+    }
+    else if (PLWCOSent && SLWCOSent && hlpcSent)
+    {
+      lcd.print(PrimaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(SecondaryString);
+      lcd.setCursor(0, 2);
+      lcd.print(hlpcString); 
+    }
+    else if (PLWCOSent && SLWCOSent && HWAlarmSent)
+    {
+      lcd.print(PrimaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(SecondaryString);
+      lcd.setCursor(0, 2);
+      lcd.print(AlarmString);  
+    }
+    else if (PLWCOSent && hlpcSent && HWAlarmSent)
+    {
+      lcd.print(PrimaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(hlpcString);
+      lcd.setCursor(0, 2);
+      lcd.print(AlarmString); 
+    }
+    else if (PLWCOSent && SLWCOSent)
+    {
+      lcd.print(PrimaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(SecondaryString);
+    }
+    else if (PLWCOSent && hlpcSent)
+    {
+      lcd.print(PrimaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(hlpcString);
+    }
+    else if (PLWCOSent && HWAlarmSent)
+    {
+      lcd.print(PrimaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(AlarmString);
+    }
+    else if (SLWCOSent && hlpcSent)
+    {
+      lcd.print(SecondaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(hlpcString);
+    }
+    else if (SLWCOSent && HWAlarmSent)
+    {
+      lcd.print(SecondaryString);
+      lcd.setCursor(0, 1);
+      lcd.print(AlarmString);
+    }
+    else if (hlpcSent && HWAlarmSent)
+    {
+      lcd.print(hlpcString);
+      lcd.setCursor(0, 1);
+      lcd.print(AlarmString);
+    }
+    else if (PLWCOSent)
+    {
+      lcd.backlight();
+      lcd.print(PrimaryString);
+    }
+    else if (SLWCOSent)
+    {
+      lcd.backlight();
+      lcd.print(SecondaryString);
+    }
+    else if (HWAlarmSent)
+    {
+      lcd.backlight();
+      lcd.print(AlarmString);
+    }
+    else if (hlpcSent)
+    {
+      lcd.backlight();
+      lcd.print(hlpcString);
+    }
+    ClearScreenSwitch = false;
   }
 }
 
@@ -268,9 +268,7 @@ void primary_LW()
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
       Serial.println(F("message sent or simulated"));
       PLWCOSent = 1;
-      difference = 0;
       alarmSwitch = false;
-      alarmTime = 0;
     }
     else Serial.println(difference); 
   }
@@ -279,8 +277,6 @@ void primary_LW()
     if(!primaryCutoff && PLWCOoutlet)
     {
       alarmSwitch = false;
-      difference = 0;
-      alarmTime = 0;
       PLWCOSent = 0;
     }
   }
@@ -313,9 +309,7 @@ void secondary_LW()
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LW2body);
       Serial.println(F("message sent or simulated"));
       SLWCOSent = 1;
-      difference2 = 0;
       alarmSwitch2 = false;
-      alarmTime2 = 0;
     }
     if (difference2 < debounceInterval)
     {
@@ -327,8 +321,6 @@ void secondary_LW()
     if(!secondaryCutoff && SLWCOoutlet)
     {
       alarmSwitch2 = false;
-      difference2 = 0;
-      alarmTime2 = 0;
       SLWCOSent = 0;
     }
   }
@@ -363,9 +355,7 @@ void Honeywell_alarm()
       readModbus();
       Serial.println(F("message sent or simulated"));
       HWAlarmSent = 1;
-      difference3 = 0;
       alarmSwitch3 = false;
-      alarmTime3 = 0;
     }
     if (difference3 < debounceInterval)
     {
@@ -377,8 +367,6 @@ void Honeywell_alarm()
     if(alarm == LOW)
     {
       alarmSwitch3 = false;
-      difference3 = 0;
-      alarmTime3 = 0;
       HWAlarmSent = 0;
     }
   }
@@ -411,9 +399,7 @@ void HPLC()
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, HLPCbody);
       Serial.println(F("message sent or simulated"));
       hlpcSent = 1;
-      difference4 = 0;
       alarmSwitch4 = false;
-      alarmTime4 = 0;
     }
     if (difference4 < debounceInterval)
     {
@@ -425,8 +411,6 @@ void HPLC()
     if (hlpcNC)
     {
       alarmSwitch4 = false;
-      difference4 = 0;
-      alarmTime4 = 0;
       hlpcSent = 0;
     }
   }
@@ -493,9 +477,7 @@ void timedmsg() // daily timer message to ensure Squawk is still operational
   if (difference5 >= dailytimer)
   {
     sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, REPbody);
-    difference5 = 0;
     msgswitch = false;
-    msgtimer1 = 0;
   }
 }
 
