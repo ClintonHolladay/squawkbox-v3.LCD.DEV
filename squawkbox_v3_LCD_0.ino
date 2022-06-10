@@ -2,6 +2,7 @@
 #include <ModbusMaster.h>
 #include <Wire.h> // Library for I2C communication
 #include <LiquidCrystal_I2C.h>
+#include <EEPROM.h>
 
 //The following const int pins are all pre-run in the PCB:
 const int low1 {5};         //to screw terminal
