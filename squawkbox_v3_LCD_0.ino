@@ -3,6 +3,9 @@
 #include <Wire.h> // Library for I2C communication
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
+#include <LibPrintf.h>
+
+//#define printf
 
 //The following const int pins are all pre-run in the PCB:
 const int low1 {5};         //to screw terminal
@@ -57,7 +60,7 @@ void setup()
 {
   Serial.begin(9600);
   Serial1.begin(19200);
-  Serial.println(F("This is squawkbox V3.LCD.0 sketch."));
+  printf("This is squawkbox V3.LCD.0 sketch.\n");
   lcd.init(); // LCD initialization
   lcd.backlight();
   lcd.begin(20, 4); // initialize LCD screen (columns, rows)
@@ -87,6 +90,7 @@ void setup()
   lcd.print("Initializing SIM");
   lcd.setCursor(7, 2);
   lcd.print("Module");
+  printf("Starting SIMboot().\n");
   SIMboot();
   delay(8000); // Give time for the SIM module to turn on and wake up
   loadContacts(); //run the SD card function.
@@ -111,15 +115,34 @@ void loop()
   HPLC();
   timedmsg();
   SMSRequest();
+  int i{};
+  while(i < 4)
+{
+  printf("EEPROM fault at address %i: %i\n",i,EEPROM.read(i));
+  i++;
+  printf("EEPROM time at address %i: %i\n",i,EEPROM.read(i));
+  i++;
+  delay(500);
+}
 }
 
 //=======================================================================//
 //=======================FUNCTION DECLARATIONS===========================//
 //=======================================================================//
 
-void print_alarms()
+void eeprom_store_alarm (int fault, int time)
 {
-  static bool ClearScreenSwitch {false};              // to be put into the complete LCD function
+  static int address {};
+  EEPROM.write(address, fault);
+  address++;
+  EEPROM.write(address, time);
+  address++;
+  if(address > 4) address = 0;
+}
+
+void print_alarms()
+{   
+  static bool ClearScreenSwitch {false};         // to be put into the complete LCD function
   static unsigned long ClearScreendifference {}; // to be put into the complete LCD function
   static unsigned long ClearScreenTime {};       // to be put into the complete LCD function
   
@@ -355,6 +378,8 @@ void Honeywell_alarm()
       Serial.println(F("about to enter modbus reading function..."));
       readModbus();
       Serial.println(F("message sent or simulated"));
+      eeprom_store_alarm(3, 200);
+      printf("eeprom_store_alarm() function complete.\n");
       HWAlarmSent = 1;
       alarmSwitch3 = false;
     }
