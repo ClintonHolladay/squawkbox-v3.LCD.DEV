@@ -11,17 +11,10 @@ const String AlarmString {"FSG Alarm"};               // =======================
 
 struct alarmVariable
 {
-    String alarm;
-//    String timestampDate;
-//    String timestampTime;
-    int year;
-    byte month;
-    byte day;
-    byte hour;
-    byte minute;
-    byte second; 
+  String alarm;
+  String timestampDate;
+  String timestampTime; 
 };
-
 void setup ()
 {
     Serial.begin(9600) ;
@@ -47,56 +40,131 @@ void setup ()
 }
 void loop ()
 {
-  printf("\n\nFIRST ALARM\n\n\n");
-      static alarmVariable bob;
-      static alarmVariable fred;
-      EEPROMalarm(bob, fred, PrimaryString);
-      printf("\n\nSECOND ALARM\n\n\n");
-      EEPROMalarm(bob, fred, hlpcString);
+  static alarmVariable bob;
+  static alarmVariable fred;
+  //Serial.println(sizeof(bob));
+  // EEPROMalarm(bob, fred, PrimaryString);
+  // delay(1000);
+  // EEPROMalarm(bob, fred, hlpcString);
+  // delay(1000);
 
-      
-//      bob = {hlpcString, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
-//      printf("\n\nTEST Time in seconds after the delay: %i\n",now.second());
-//      EEPROM.put(13, bob);
-//      EEPROM.get(13, fred);
-//      printf("\n\nSECOND ALARM\n\n\n");
-//      Serial.println(fred.alarm);
-//      printf("Date: %i/%i/%i\n", fred.year,fred.month,fred.day);
-//      printf("Time - %i:%i:%i\n",fred.hour,fred.minute,fred.second);
-//      printf("Size is: %i\n\n", sizeof bob);
-  delay (3000) ;
+    EEPROMalarmInput(bob, PrimaryString);
+    delay (1000);
+    EEPROMalarmInput(bob, SecondaryString);
+    delay (1000);
+    EEPROMalarmInput(bob, hlpcString);
+    delay (1000); 
+    EEPROMalarmInput(bob, AlarmString); 
+    delay (1000); 
+    EEPROMalarmInput(bob, PrimaryString); 
+    delay (1000); 
+    EEPROMalarmInput(bob, AlarmString); 
+    delay (1000); 
+    EEPROMalarmInput(bob, hlpcString); 
+    delay (1000); 
+    EEPROMalarmInput(bob, AlarmString); 
+    delay (1000); 
+    EEPROMalarmInput(bob, SecondaryString); 
+    delay (1000); 
+    EEPROMalarmInput(bob, PrimaryString); 
+
+    EEPROMalarmPrint(fred);
+    delay (1000);
+    EEPROMalarmPrint(fred);
+    delay (1000);
+    EEPROMalarmPrint(fred);
+    delay (1000);
+    EEPROMalarmPrint(fred);
+    delay (1000);
+    EEPROMalarmPrint(fred);
+    delay (1000);
+    EEPROMalarmPrint(fred);
+    delay (1000);
+    EEPROMalarmPrint(fred);
+    delay (1000);
+    EEPROMalarmPrint(fred);
+    delay (1000);
+    EEPROMalarmPrint(fred);
+    delay (1000);
+    EEPROMalarmPrint(fred);
+    delay (1000);
 }
 
+void EEPROMalarmInput(alarmVariable& STRUCT, String ALARM)
+{
+  static int inputCounter{};
+  DateTime now = rtc.now();
+  STRUCT = {ALARM, now.timestamp(now.TIMESTAMP_DATE), now.timestamp(now.TIMESTAMP_TIME)};
+  EEPROM.put(inputCounter, STRUCT);
+  inputCounter += 18;
+  Serial.print("ALARM ");
+  Serial.println(inputCounter/18);
+  Serial.print("inputCounter = ");
+  Serial.println(inputCounter);
+  Serial.println();
+  //printf("ALARM %i\n", (inputCounter/18));
+  //printf("\ninputCounter = %i\n", inputCounter);
+  if(inputCounter==180) 
+  {
+    inputCounter = 0;
+    printf("REST inputCounter NOW\n");
+  }
+}
 
+void EEPROMalarmPrint(alarmVariable& fred)
+{
+  static int outputCounter{};
+  EEPROM.get(outputCounter, fred);
+  outputCounter += 18;
+  printf("ALARM %i\n", (outputCounter/18));
+  Serial.println(fred.alarm);
+  Serial.println(fred.timestampDate);
+  Serial.println(fred.timestampTime);
+  printf("\noutputCounter = %i\n", outputCounter);
+  if(outputCounter==180) 
+  {
+    outputCounter = 0;
+    printf("REST outputCounter NOW\n");
+  }
+}
+
+// includes booth read and wirte to EEPROM STEP 2
 void EEPROMalarm(alarmVariable& bob, alarmVariable& fred, String ALARM)
 {
-  static char buffer[40];
-  static int counter{};
-  DateTime now = rtc.now();
+ static int counter{};
+ DateTime now = rtc.now();
+ bob = {ALARM, now.timestamp(now.TIMESTAMP_DATE), now.timestamp(now.TIMESTAMP_TIME)};
+ EEPROM.put(counter, bob);
+ EEPROM.get(counter, fred);
+ counter+=18;
+ printf("ALARM %i\n", (counter/18));
+ Serial.println(fred.alarm);
+ Serial.println(fred.timestampDate);
+ Serial.println(fred.timestampTime);
+ printf("\ncounter = %i\n", counter);
+ if(counter==180) 
+  {
+    counter = 0;
+    printf("REST counter NOW\n");
+  }
+}
+
+//// OLD FUNCTION BEFORE I KNEW ABOUT THE TIME STAMP
+//void EEPROMalarm(alarmVariable& bob, alarmVariable& fred, String ALARM)
+//{
+//  static int counter{};
+//  DateTime now = rtc.now();
 //  Serial.print("Date: ");
-  sprintf(buffer,"Time stamp: %s",now.timestamp(now.TIMESTAMP_DATE)); //still figuring out printf strings...
-  Serial.println(buffer);
-  //printf("%c\n",buffer);
 //  Serial.println(now.timestamp(now.TIMESTAMP_DATE));
 //  Serial.print("Time: ");
 //  Serial.println(now.timestamp(now.TIMESTAMP_TIME));
-  bob = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
-  EEPROM.put(counter, bob);
-  EEPROM.get(counter, fred);
-  Serial.println(fred.alarm);
-  printf("Date: %i/%i/%i\n", fred.year,fred.month,fred.day);
-  printf("Time: %i:%i:%i\n",fred.hour,fred.minute,fred.second);
-  counter+=13;
-  printf("Couonter = %i\n", counter);
-  if(counter>130) counter = 0;
-  delay(3000);
-}
-
-
-
-
-
-
-
-
-
+//  bob = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
+//  EEPROM.put(counter, bob);
+//  EEPROM.get(counter, fred);
+//  Serial.println(fred.alarm);
+//  printf("Date: %i/%i/%i\n", fred.year,fred.month,fred.day);
+//  printf("Time: %i:%i:%i\n",fred.hour,fred.minute,fred.second);
+//  counter+=18;
+//  printf("Couonter = %i\n", counter);
+//  if(counter>180) counter = 0;
+//}
