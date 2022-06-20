@@ -65,6 +65,7 @@ struct alarmVariable
 };
 
 //================INSTANTIATION================//
+
 ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 File myFile;
@@ -128,6 +129,7 @@ void loop()
 {
   static alarmVariable AlarmArray[10];
   static alarmVariable fred;
+  
   print_alarms();
   primary_LW();
   secondary_LW();
@@ -420,8 +422,8 @@ void Honeywell_alarm()
       Serial.println(F("about to enter modbus reading function..."));
       readModbus();
       Serial.println(F("message sent or simulated"));
-      eeprom_store_alarm(3, 200);
-      printf("eeprom_store_alarm() function complete.\n");
+      EEPROMalarmInput(alarmArray, AlarmString);
+      printf("EEPROM() function FSG Alarm complete.\n");
       HWAlarmSent = 1;
       alarmSwitch3 = false;
     }
