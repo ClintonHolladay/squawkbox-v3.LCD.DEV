@@ -3,9 +3,13 @@
 #include <Wire.h> // Library for I2C communication
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
+#include "RTClib.h"
 #include <LibPrintf.h>
 
 //#define printf
+//#define load_first_contact_number
+#define load_second_contact_number
+//#define load_third_contact_number
 
 //The following const int pins are all pre-run in the PCB:
 const int low1 {5};         //to screw terminal
@@ -47,10 +51,24 @@ static char contactToArray1[25];
 static char contactToArray2[25];
 static char contactToArray3[25];
 
+//=============User defined Data Types===================//
+
+struct alarmVariable
+{
+   String alarm;
+   int year;
+   byte month;
+   byte day;
+   byte hour;
+   byte minute;
+   byte second; 
+};
+
 //================INSTANTIATION================//
 ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 File myFile;
+RTC_PCF8523 rtc;
 
 //=======================================================================//
 //================================SETUP()================================//
@@ -108,6 +126,8 @@ void setup()
 
 void loop()
 {
+  static alarmVariable AlarmArray[10];
+  static alarmVariable fred;
   print_alarms();
   primary_LW();
   secondary_LW();
@@ -115,29 +135,51 @@ void loop()
   HPLC();
   timedmsg();
   SMSRequest();
-  int i{};
-  while(i < 4)
-{
-  printf("EEPROM fault at address %i: %i\n",i,EEPROM.read(i));
-  i++;
-  printf("EEPROM time at address %i: %i\n",i,EEPROM.read(i));
-  i++;
-  delay(500);
-}
 }
 
 //=======================================================================//
 //=======================FUNCTION DECLARATIONS===========================//
 //=======================================================================//
 
-void eeprom_store_alarm (int fault, int time)
+void EEPROMalarmInput(alarmVariable Array[], String ALARM)
 {
-  static int address {};
-  EEPROM.write(address, fault);
-  address++;
-  EEPROM.write(address, time);
-  address++;
-  if(address > 4) address = 0;
+  static int inputCounter{};
+  static int arrayCounter{};
+  printf("EEPROM inputCounter at start of function = %i.\n\n", inputCounter);
+  DateTime now = rtc.now();
+  Array[arrayCounter] = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
+  EEPROM.put(inputCounter, Array[arrayCounter]);
+  inputCounter += 13;
+  arrayCounter++;
+  printf("ALARM %i saved.\n", (inputCounter/13));
+  printf("inputCounter is now = %i.\n\n", inputCounter);
+  if(inputCounter==130) 
+  {
+    inputCounter = 0;
+    printf("\nREST inputCounter NOW.\n\n");
+  }
+  if(arrayCounter==10) 
+  {
+    arrayCounter = 0;
+    printf("\nREST arrayCounter NOW.\n\n");
+  }
+}
+
+void EEPROMalarmPrint(alarmVariable& fred)
+{
+  static int outputCounter{};
+  EEPROM.get(outputCounter, fred);
+  outputCounter += 13;
+  printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/13));
+  Serial.println(fred.alarm);
+  printf("Date: %i/%i/%i\n", fred.year,fred.month,fred.day);
+  printf("Time: %i:%i:%i\n",fred.hour,fred.minute,fred.second);
+  //printf("outputCounter is now = %i.\n\n", outputCounter);
+  if(outputCounter==130) 
+  {
+    outputCounter = 0;
+    printf("REST outputCounter NOW.\n\n");
+  }
 }
 
 void print_alarms()
@@ -442,7 +484,7 @@ void HPLC()
   }
 }
 
-void sendSMS(char pt1[], char pt2[], char pt3[], char pt4[])
+void sendSMS(char pt1[], char pt2[], char pt3[], char pt4[])//SIM7000A module
 {
   char finalURL[250] = "";
   strcpy(finalURL, pt1);
@@ -453,25 +495,25 @@ void sendSMS(char pt1[], char pt2[], char pt3[], char pt4[])
   delay(20);
   Serial1.print("AT+HTTPTERM\r");
   delay(1000);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+SAPBR=3,1,\"APN\",\"super\"\r");
   delay(300);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+SAPBR=1,1\r");
   delay(1000);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+HTTPINIT\r");
   delay(100);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+HTTPPARA=\"CID\",1\r");
   delay(100);
-  getResponse();
+  //getResponse();
   Serial1.println(finalURL);
   delay(100);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+HTTPACTION=1\r");
-  delay(5000);
-  getResponse();
+  delay(4000);
+  //getResponse();
 }
 
 void getResponse() // serial monitor printing for troubleshooting
@@ -507,7 +549,7 @@ void timedmsg() // daily timer message to ensure Squawk is still operational
   }
 }
 
-void SMSRequest() // maybe use a while loop but need to fix the random letters that are recieved
+void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the random letters that are recieved
 {
   char incomingChar {};
   //add message for changing the operators phone number
@@ -555,8 +597,8 @@ void SMSRequest() // maybe use a while loop but need to fix the random letters t
 }
 
 void loadContacts()
-//add an endpoint for data logging
 {
+//add an endpoint for data logging
 // contacts to recieve text messages
 String conFrom1 = "";
 String conTo1 = "";
@@ -601,6 +643,7 @@ bool SDbegin {true};
 
   //------------------load first contact number-------------//
 
+#ifdef load_first_contact_number
   myFile = SD.open("to1.txt");
   if (myFile) 
   {
@@ -623,9 +666,11 @@ bool SDbegin {true};
   Serial.println(conTo1);
   Serial.print(F("The first phone number TO char array is "));
   Serial.println(contactToArray1);
-  
+#endif
+
   //------------------load second contact number-------------//
 
+#ifdef load_second_contact_number
   myFile = SD.open("to2.txt");
   if (myFile) 
   {
@@ -648,9 +693,11 @@ bool SDbegin {true};
   Serial.println(conTo2);
   Serial.print(F("The second phone number TO char array is "));
   Serial.println(contactToArray2);
+#endif
 
   //------------------load third contact number-------------//
 
+#ifdef load_third_contact_number
   myFile = SD.open("to3.txt");
   if (myFile) 
   {
@@ -673,6 +720,7 @@ bool SDbegin {true};
   Serial.println(conTo3);
   Serial.print(F("The third phone number TO char array is "));
   Serial.println(contactToArray3);
+#endif
 
   //------------------load URL header-------------//
 
@@ -774,43 +822,47 @@ void initiateSim()
 {
   //The remainder of the setup is for waking the SIM module, logging on, and sending the first
   //test message to verify proper booting.
-  Serial.println("Hey!  Wake up!");
+  printf("Hey!  Wake up!\n");
   Serial1.print("AT\r"); //Toggling this blank AT command elicits a mirror response from the
   //SIM module and helps to activate it.
-  getResponse();
+  //getResponse();
   Serial1.print("AT\r");
-  getResponse();
+  delay(50);
+  //getResponse();
   Serial1.print("AT\r");
-  getResponse();
+  delay(50);
+  //getResponse();
   Serial1.print("AT\r");
-  getResponse();
+  delay(50);
+  //getResponse();
   Serial1.print("AT\r");
-  getResponse();
+  delay(50);
+  //getResponse();
 
   //========   SIM MODULE SETUP   =======//
 
   Serial1.print("AT+CGDCONT=1,\"IP\",\"super\"\r");//"super" is the key required to log onto the network using Twilio SuperSIM
   delay(500);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+COPS=1,2,\"310410\"\r"); //310410 is AT&T's network code https://www.msisdn.net/mccmnc/310410/
   delay(5000);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+SAPBR=3,1,\"APN\",\"super\"\r"); //establish SAPBR profile.  APN = "super"
   delay(3000);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+SAPBR=1,1\r");
   delay(2000);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+CMGD=0,4\r"); //this line deletes any existing text messages to ensure
   //that the message space is empy and able to accept new messages
   delay(100);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+CMGF=1\r");
   delay(100);
-  getResponse();
+  //getResponse();
   Serial1.print("AT+CNMI=2,2,0,0,0\r"); //
   delay(100);
-  getResponse();
+  //getResponse();
   //sendSMS(urlHeaderArray, contactFromArray1, contactToArray1, SetCombody);
   sendSMS(urlHeaderArray, contactFromArray1, contactToArray2, SetCombody);
   //sendSMS(urlHeaderArray, contactFromArray1, contactToArray3, SetCombody);
