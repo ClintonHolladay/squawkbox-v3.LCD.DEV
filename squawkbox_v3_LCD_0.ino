@@ -3,7 +3,7 @@
 #include <Wire.h> // Library for I2C communication
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
-#include "RTClib.h"
+#include <RTClib.h>
 #include <LibPrintf.h>
 
 //#define printf
@@ -26,10 +26,10 @@ const int SLWCOoutletPin {16};
 const int debounceInterval {3000};//NEEDS TO BE MADE CHANGEABLE ON SD CARD
                                   // to prevent false alarms from electrical noise and also prevents repeat messages from bouncing PLWCOs.   
                                   // Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
-const String PrimaryString {"Primary Low Water"};     // ====================================//
-const String SecondaryString {"Secondary Low Water"}; // alarm text printed to the LCD screen//
-const String hlpcString {"High Limit"};               // alarm text printed to the LCD screen//
-const String AlarmString {"FSG Alarm"};               // ====================================//
+const char PrimaryString[] {"Primary Low Water"};     // ====================================//
+const char SecondaryString[] {"Secondary Low Water"}; // alarm text printed to the LCD screen//
+const char hlpcString[] {"High Limit"};               // alarm text printed to the LCD screen//
+const char AlarmString[] {"FSG Alarm"};               // ====================================//
 // message to be sent
 const char SetCombody[] = "Body=Setup%20Complete\"\r";
 const char LWbody[] = "Body=Low%20Water\"\r";
@@ -55,7 +55,7 @@ static char contactToArray3[25];
 
 struct alarmVariable
 {
-   String alarm;
+   char alarm[20];
    int year;
    byte month;
    byte day;
@@ -63,6 +63,9 @@ struct alarmVariable
    byte minute;
    byte second; 
 };
+
+static alarmVariable alarmArray[10];
+static alarmVariable fred;
 
 //================INSTANTIATION================//
 
@@ -80,6 +83,26 @@ void setup()
   Serial.begin(9600);
   Serial1.begin(19200);
   printf("This is squawkbox V3.LCD.0 sketch.\n");
+  if (! rtc.begin()) 
+    {
+      Serial.println("Couldn't find RTC");
+      Serial.flush();
+      abort();
+    }
+  if (! rtc.initialized() || rtc.lostPower()) 
+    {
+      Serial.println("RTC is NOT initialized, let's set the time!");
+      // When time needs to be set on a new device, or after a power loss, the
+      // following line sets the RTC to the date & time this sketch was compiled
+                  // Note: allow 2 seconds after inserting battery or applying external power
+                  // without battery before calling adjust(). This gives the PCF8523's
+                  // crystal oscillator time to stabilize. If you call adjust() very quickly
+                  // after the RTC is powered, lostPower() may still return true.
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+      
+    }
+  rtc.start();
+  
   lcd.init(); // LCD initialization
   lcd.backlight();
   lcd.begin(20, 4); // initialize LCD screen (columns, rows)
@@ -127,35 +150,33 @@ void setup()
 
 void loop()
 {
-  static alarmVariable AlarmArray[10];
-  static alarmVariable fred;
-  
   print_alarms();
   primary_LW();
   secondary_LW();
   Honeywell_alarm();
-  HPLC();
+  HLPC();
   timedmsg();
   SMSRequest();
+  EEPROMalarmPrint(fred);
 }
 
 //=======================================================================//
 //=======================FUNCTION DECLARATIONS===========================//
 //=======================================================================//
 
-void EEPROMalarmInput(alarmVariable Array[], String ALARM)
+void EEPROMalarmInput(alarmVariable Array[], char ALARM[])
 {
   static int inputCounter{};
   static int arrayCounter{};
   printf("EEPROM inputCounter at start of function = %i.\n\n", inputCounter);
   DateTime now = rtc.now();
-  Array[arrayCounter] = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
+  Array[arrayCounter] = {ALARM[20], now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
   EEPROM.put(inputCounter, Array[arrayCounter]);
-  inputCounter += 13;
+  inputCounter += 27;
   arrayCounter++;
-  printf("ALARM %i saved.\n", (inputCounter/13));
+  printf("ALARM %i saved.\n", (inputCounter/27));
   printf("inputCounter is now = %i.\n\n", inputCounter);
-  if(inputCounter==130) 
+  if(inputCounter==270) 
   {
     inputCounter = 0;
     printf("\nREST inputCounter NOW.\n\n");
@@ -171,17 +192,38 @@ void EEPROMalarmPrint(alarmVariable& fred)
 {
   static int outputCounter{};
   EEPROM.get(outputCounter, fred);
-  outputCounter += 13;
-  printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/13));
+  outputCounter += 27;
+  printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/27));
   Serial.println(fred.alarm);
   printf("Date: %i/%i/%i\n", fred.year,fred.month,fred.day);
   printf("Time: %i:%i:%i\n",fred.hour,fred.minute,fred.second);
-  //printf("outputCounter is now = %i.\n\n", outputCounter);
-  if(outputCounter==130) 
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("EEPROM ALARM: ");
+  lcd.print(outputCounter/27);
+  lcd.setCursor(0, 1);
+  lcd.print(fred.alarm);
+  lcd.setCursor(0, 2);
+  lcd.print("Date: ");
+  lcd.print(fred.year);
+  lcd.print("/");
+  lcd.print(fred.month);
+  lcd.print("/");
+  lcd.print(fred.day);
+  lcd.setCursor(0, 3);
+  lcd.print("Time: ");
+  lcd.print(fred.hour);
+  lcd.print(":");
+  lcd.print(fred.minute);
+  lcd.print(":");
+  lcd.print(fred.second);
+  printf("outputCounter is now = %i.\n\n", outputCounter);
+  if(outputCounter==270) 
   {
     outputCounter = 0;
     printf("REST outputCounter NOW.\n\n");
   }
+  delay(5000);
 }
 
 void print_alarms()
@@ -335,6 +377,8 @@ void primary_LW()
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
       Serial.println(F("message sent or simulated"));
+      EEPROMalarmInput(alarmArray, PrimaryString);
+      printf("EEPROM() function Primary Low Water complete.\n");
       PLWCOSent = 1;
       alarmSwitch = false;
     }
@@ -376,6 +420,8 @@ void secondary_LW()
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LW2body);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LW2body);
       Serial.println(F("message sent or simulated"));
+      EEPROMalarmInput(alarmArray, SecondaryString);
+      printf("EEPROM() function 2nd Low Water complete.\n");
       SLWCOSent = 1;
       alarmSwitch2 = false;
     }
@@ -442,7 +488,7 @@ void Honeywell_alarm()
   }
 }
 
-void HPLC()
+void HLPC()
 {
   static bool alarmSwitch4 {false};
   static bool hlpcCOMMON{};
@@ -468,6 +514,8 @@ void HPLC()
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, HLPCbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, HLPCbody);
       Serial.println(F("message sent or simulated"));
+      EEPROMalarmInput(alarmArray, hlpcString);
+      printf("EEPROM() function High Limit complete.\n");
       hlpcSent = 1;
       alarmSwitch4 = false;
     }
@@ -869,5 +917,5 @@ void initiateSim()
   sendSMS(urlHeaderArray, contactFromArray1, contactToArray2, SetCombody);
   //sendSMS(urlHeaderArray, contactFromArray1, contactToArray3, SetCombody);
   delay(2000);
-  Serial.println(F("Setup complete. Entering main loop"));
+  Serial.println(F("initiateSim() complete."));
 }
