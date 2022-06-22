@@ -26,10 +26,10 @@ const int SLWCOoutletPin {16};
 const int debounceInterval {3000};//NEEDS TO BE MADE CHANGEABLE ON SD CARD
                                   // to prevent false alarms from electrical noise and also prevents repeat messages from bouncing PLWCOs.   
                                   // Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
-const char PrimaryString[] {"Primary Low Water"};     // ====================================//
-const char SecondaryString[] {"Secondary Low Water"}; // alarm text printed to the LCD screen//
-const char hlpcString[] {"High Limit"};               // alarm text printed to the LCD screen//
-const char AlarmString[] {"FSG Alarm"};               // ====================================//
+const String PrimaryString {"Primary Low Water"};     // ====================================//
+const String SecondaryString {"Secondary Low Water"}; // alarm text printed to the LCD screen//
+const String hlpcString {"High Limit"};               // alarm text printed to the LCD screen//
+const String AlarmString {"FSG Alarm"};               // ====================================//
 // message to be sent
 const char SetCombody[] = "Body=Setup%20Complete\"\r";
 const char LWbody[] = "Body=Low%20Water\"\r";
@@ -55,7 +55,7 @@ static char contactToArray3[25];
 
 struct alarmVariable
 {
-   char alarm[20];
+   String alarm;
    int year;
    byte month;
    byte day;
@@ -63,9 +63,6 @@ struct alarmVariable
    byte minute;
    byte second; 
 };
-
-static alarmVariable alarmArray[10];
-static alarmVariable fred;
 
 //================INSTANTIATION================//
 
@@ -84,23 +81,24 @@ void setup()
   Serial1.begin(19200);
   printf("This is squawkbox V3.LCD.0 sketch.\n");
   if (! rtc.begin()) 
-    {
-      Serial.println("Couldn't find RTC");
-      Serial.flush();
-      abort();
-    }
+   {
+     Serial.println("Couldn't find RTC");
+     Serial.flush();
+     abort();
+   }
   if (! rtc.initialized() || rtc.lostPower()) 
-    {
-      Serial.println("RTC is NOT initialized, let's set the time!");
-      // When time needs to be set on a new device, or after a power loss, the
-      // following line sets the RTC to the date & time this sketch was compiled
-                  // Note: allow 2 seconds after inserting battery or applying external power
-                  // without battery before calling adjust(). This gives the PCF8523's
-                  // crystal oscillator time to stabilize. If you call adjust() very quickly
-                  // after the RTC is powered, lostPower() may still return true.
-      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+   {
+     Serial.println("RTC is NOT initialized, let's set the time!");
+     // When time needs to be set on a new device, or after a power loss, the
+     // following line sets the RTC to the date & time this sketch was compiled
+                 // Note: allow 2 seconds after inserting battery or applying external power
+                 // without battery before calling adjust(). This gives the PCF8523's
+                 // crystal oscillator time to stabilize. If you call adjust() very quickly
+                 // after the RTC is powered, lostPower() may still return true.
+     delay(3000);
+     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
       
-    }
+   }
   rtc.start();
   
   lcd.init(); // LCD initialization
@@ -157,26 +155,34 @@ void loop()
   HLPC();
   timedmsg();
   SMSRequest();
-  EEPROMalarmPrint(fred);
+ EEPROMalarmPrint();
+//  DateTime now = rtc.now();
+//  printf("Date: %i/%i/%i\n",now.year(),now.month(),now.day());
+//  printf("Time: %i:%i:%i\n",now.hour(),now.minute(),now.second());
+//  delay(2000);
 }
 
 //=======================================================================//
 //=======================FUNCTION DECLARATIONS===========================//
 //=======================================================================//
 
-void EEPROMalarmInput(alarmVariable Array[], char ALARM[])
+void EEPROMalarmInput(String ALARM)
 {
+  static alarmVariable alarmArray[10]; // get rid of the array??
   static int inputCounter{};
   static int arrayCounter{};
   printf("EEPROM inputCounter at start of function = %i.\n\n", inputCounter);
   DateTime now = rtc.now();
-  Array[arrayCounter] = {ALARM[20], now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
-  EEPROM.put(inputCounter, Array[arrayCounter]);
-  inputCounter += 27;
+  alarmArray[arrayCounter] = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
+  EEPROM.put(inputCounter, alarmArray[arrayCounter]);
+  inputCounter += 13;
+  printf("ALARM %i saved.\n", (inputCounter/13));
+  Serial.println(alarmArray[arrayCounter].alarm);
+  printf("Date: %i/%i/%i\n", alarmArray[arrayCounter].year, alarmArray[arrayCounter].month, alarmArray[arrayCounter].day);
+  printf("Time: %i:%i:%i\n", alarmArray[arrayCounter].hour, alarmArray[arrayCounter].minute, alarmArray[arrayCounter].second);
   arrayCounter++;
-  printf("ALARM %i saved.\n", (inputCounter/27));
   printf("inputCounter is now = %i.\n\n", inputCounter);
-  if(inputCounter==270) 
+  if(inputCounter==130) 
   {
     inputCounter = 0;
     printf("\nREST inputCounter NOW.\n\n");
@@ -188,19 +194,20 @@ void EEPROMalarmInput(alarmVariable Array[], char ALARM[])
   }
 }
 
-void EEPROMalarmPrint(alarmVariable& fred)
+void EEPROMalarmPrint()
 {
+  alarmVariable fred;
   static int outputCounter{};
   EEPROM.get(outputCounter, fred);
-  outputCounter += 27;
-  printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/27));
+  outputCounter += 13;
+  printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/13));
   Serial.println(fred.alarm);
   printf("Date: %i/%i/%i\n", fred.year,fred.month,fred.day);
   printf("Time: %i:%i:%i\n",fred.hour,fred.minute,fred.second);
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("EEPROM ALARM: ");
-  lcd.print(outputCounter/27);
+  lcd.print(outputCounter/13);
   lcd.setCursor(0, 1);
   lcd.print(fred.alarm);
   lcd.setCursor(0, 2);
@@ -218,7 +225,7 @@ void EEPROMalarmPrint(alarmVariable& fred)
   lcd.print(":");
   lcd.print(fred.second);
   printf("outputCounter is now = %i.\n\n", outputCounter);
-  if(outputCounter==270) 
+  if(outputCounter==130) 
   {
     outputCounter = 0;
     printf("REST outputCounter NOW.\n\n");
@@ -374,10 +381,10 @@ void primary_LW()
     {
       Serial.println(F("Primary low water.  Sending message"));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
-      sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
+       (urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
       Serial.println(F("message sent or simulated"));
-      EEPROMalarmInput(alarmArray, PrimaryString);
+      EEPROMalarmInput(PrimaryString);
       printf("EEPROM() function Primary Low Water complete.\n");
       PLWCOSent = 1;
       alarmSwitch = false;
@@ -420,7 +427,7 @@ void secondary_LW()
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LW2body);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LW2body);
       Serial.println(F("message sent or simulated"));
-      EEPROMalarmInput(alarmArray, SecondaryString);
+      EEPROMalarmInput(SecondaryString);
       printf("EEPROM() function 2nd Low Water complete.\n");
       SLWCOSent = 1;
       alarmSwitch2 = false;
@@ -468,7 +475,7 @@ void Honeywell_alarm()
       Serial.println(F("about to enter modbus reading function..."));
       readModbus();
       Serial.println(F("message sent or simulated"));
-      EEPROMalarmInput(alarmArray, AlarmString);
+      EEPROMalarmInput(AlarmString);
       printf("EEPROM() function FSG Alarm complete.\n");
       HWAlarmSent = 1;
       alarmSwitch3 = false;
@@ -514,7 +521,7 @@ void HLPC()
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, HLPCbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, HLPCbody);
       Serial.println(F("message sent or simulated"));
-      EEPROMalarmInput(alarmArray, hlpcString);
+      EEPROMalarmInput(hlpcString);
       printf("EEPROM() function High Limit complete.\n");
       hlpcSent = 1;
       alarmSwitch4 = false;
