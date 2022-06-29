@@ -55,7 +55,7 @@ static char contactToArray3[25];
 
 struct alarmVariable
 {
-   String alarm;
+   int alarm;
    int year;
    byte month;
    byte day;
@@ -63,6 +63,8 @@ struct alarmVariable
    byte minute;
    byte second; 
 };
+
+const int eepromAlarmDataSize = sizeof(alarmVariable); 
 
 //================INSTANTIATION================//
 
@@ -148,6 +150,7 @@ void setup()
 
 void loop()
 {
+  //printf("alarmvariable is %i bytes.", sizeof(alarmVariable));
   print_alarms();
   primary_LW();
   secondary_LW();
@@ -155,7 +158,7 @@ void loop()
   HLPC();
   timedmsg();
   SMSRequest();
- EEPROMalarmPrint();
+  EEPROMalarmPrint();
 //  DateTime now = rtc.now();
 //  printf("Date: %i/%i/%i\n",now.year(),now.month(),now.day());
 //  printf("Time: %i:%i:%i\n",now.hour(),now.minute(),now.second());
@@ -166,50 +169,54 @@ void loop()
 //=======================FUNCTION DECLARATIONS===========================//
 //=======================================================================//
 
-void EEPROMalarmInput(String ALARM)
+void EEPROMalarmInput(int ALARM)
 {
-  static alarmVariable alarmArray[10]; // get rid of the array??
-  static int inputCounter{};
-  static int arrayCounter{};
+  alarmVariable bob;
+  static int inputCounter = 0;
   printf("EEPROM inputCounter at start of function = %i.\n\n", inputCounter);
   DateTime now = rtc.now();
-  alarmArray[arrayCounter] = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
-  EEPROM.put(inputCounter, alarmArray[arrayCounter]);
-  inputCounter += 13;
-  printf("ALARM %i saved.\n", (inputCounter/13));
-  Serial.println(alarmArray[arrayCounter].alarm);
-  printf("Date: %i/%i/%i\n", alarmArray[arrayCounter].year, alarmArray[arrayCounter].month, alarmArray[arrayCounter].day);
-  printf("Time: %i:%i:%i\n", alarmArray[arrayCounter].hour, alarmArray[arrayCounter].minute, alarmArray[arrayCounter].second);
-  arrayCounter++;
+  //bob = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
+  bob.alarm = ALARM;
+  bob.year = now.year();
+  bob.month = now.month();
+  bob.day = now.day();
+  bob.hour = now.hour();
+  bob.minute = now.minute();
+  bob.second = now.second();
+  EEPROM.put(inputCounter, bob);
+  inputCounter += eepromAlarmDataSize;
+  printf("ALARM %i saved.\n", (inputCounter/eepromAlarmDataSize));
+  Serial.println(ALARM);
+  printf("Date: %i/%i/%i\n", bob.year, bob.month, bob.day);
+  printf("Time: %i:%i:%i\n", bob.hour, bob.minute, bob.second);
+  //arrayCounter++;
   printf("inputCounter is now = %i.\n\n", inputCounter);
-  if(inputCounter==130) 
+  if(inputCounter == eepromAlarmDataSize*10) 
   {
     inputCounter = 0;
     printf("\nREST inputCounter NOW.\n\n");
-  }
-  if(arrayCounter==10) 
-  {
-    arrayCounter = 0;
-    printf("\nREST arrayCounter NOW.\n\n");
   }
 }
 
 void EEPROMalarmPrint()
 {
   alarmVariable fred;
-  static int outputCounter{};
+  static int outputCounter = 0;
   EEPROM.get(outputCounter, fred);
-  outputCounter += 13;
-  printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/13));
+  outputCounter += eepromAlarmDataSize;
+  printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/eepromAlarmDataSize));
   Serial.println(fred.alarm);
   printf("Date: %i/%i/%i\n", fred.year,fred.month,fred.day);
   printf("Time: %i:%i:%i\n",fred.hour,fred.minute,fred.second);
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("EEPROM ALARM: ");
-  lcd.print(outputCounter/13);
+  lcd.print(outputCounter/eepromAlarmDataSize);
   lcd.setCursor(0, 1);
-  lcd.print(fred.alarm);
+  if(fred.alarm == 1)
+  {
+    lcd.print(PrimaryString);
+  }
   lcd.setCursor(0, 2);
   lcd.print("Date: ");
   lcd.print(fred.year);
@@ -225,7 +232,7 @@ void EEPROMalarmPrint()
   lcd.print(":");
   lcd.print(fred.second);
   printf("outputCounter is now = %i.\n\n", outputCounter);
-  if(outputCounter==130) 
+  if(outputCounter == eepromAlarmDataSize*3) 
   {
     outputCounter = 0;
     printf("REST outputCounter NOW.\n\n");
@@ -379,13 +386,13 @@ void primary_LW()
 
     if ( difference >= debounceInterval)
     {
+      EEPROMalarmInput(1);
+      printf("EEPROM() function Primary Low Water complete.\n");
       Serial.println(F("Primary low water.  Sending message"));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
        (urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
       Serial.println(F("message sent or simulated"));
-      EEPROMalarmInput(PrimaryString);
-      printf("EEPROM() function Primary Low Water complete.\n");
       PLWCOSent = 1;
       alarmSwitch = false;
     }
@@ -427,7 +434,7 @@ void secondary_LW()
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LW2body);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LW2body);
       Serial.println(F("message sent or simulated"));
-      EEPROMalarmInput(SecondaryString);
+      //EEPROMalarmInput(SecondaryString);
       printf("EEPROM() function 2nd Low Water complete.\n");
       SLWCOSent = 1;
       alarmSwitch2 = false;
@@ -475,7 +482,7 @@ void Honeywell_alarm()
       Serial.println(F("about to enter modbus reading function..."));
       readModbus();
       Serial.println(F("message sent or simulated"));
-      EEPROMalarmInput(AlarmString);
+      //EEPROMalarmInput(AlarmString);
       printf("EEPROM() function FSG Alarm complete.\n");
       HWAlarmSent = 1;
       alarmSwitch3 = false;
@@ -521,7 +528,7 @@ void HLPC()
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, HLPCbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, HLPCbody);
       Serial.println(F("message sent or simulated"));
-      EEPROMalarmInput(hlpcString);
+      //EEPROMalarmInput(hlpcString);
       printf("EEPROM() function High Limit complete.\n");
       hlpcSent = 1;
       alarmSwitch4 = false;
