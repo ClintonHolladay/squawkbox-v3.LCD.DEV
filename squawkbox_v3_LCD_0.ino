@@ -6,7 +6,8 @@
 #include <RTClib.h>
 #include <LibPrintf.h>
 
-//#define printf
+//#define PRINTF_DISABLE_ALL
+//#define printf(x...)
 //#define load_first_contact_number
 #define load_second_contact_number
 //#define load_third_contact_number
@@ -26,10 +27,10 @@ const int SLWCOoutletPin {16};
 const int debounceInterval {3000};//NEEDS TO BE MADE CHANGEABLE ON SD CARD
                                   // to prevent false alarms from electrical noise and also prevents repeat messages from bouncing PLWCOs.   
                                   // Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
-const String PrimaryString {"Primary Low Water"};     // ====================================//
-const String SecondaryString {"Secondary Low Water"}; // alarm text printed to the LCD screen//
-const String hlpcString {"High Limit"};               // alarm text printed to the LCD screen//
-const String AlarmString {"FSG Alarm"};               // ====================================//
+const char PrimaryString[] {"Primary Low Water"};     // ====================================//
+const char SecondaryString[] {"Secondary Low Water"}; // alarm text printed to the LCD screen//
+const char hlpcString[] {"High Limit"};               // alarm text printed to the LCD screen//
+const char AlarmString[] {"FSG Alarm"};               // ====================================//
 // message to be sent
 const char SetCombody[] = "Body=Setup%20Complete\"\r";
 const char LWbody[] = "Body=Low%20Water\"\r";
@@ -65,6 +66,8 @@ struct alarmVariable
 };
 
 const int eepromAlarmDataSize = sizeof(alarmVariable); 
+
+enum EEPROMAlarmCode {PLWCO = 1, SLWCO, FSGalarm, HighLimit};
 
 //================INSTANTIATION================//
 
@@ -150,7 +153,6 @@ void setup()
 
 void loop()
 {
-  //printf("alarmvariable is %i bytes.", sizeof(alarmVariable));
   print_alarms();
   primary_LW();
   secondary_LW();
@@ -159,10 +161,6 @@ void loop()
   timedmsg();
   SMSRequest();
   EEPROMalarmPrint();
-//  DateTime now = rtc.now();
-//  printf("Date: %i/%i/%i\n",now.year(),now.month(),now.day());
-//  printf("Time: %i:%i:%i\n",now.hour(),now.minute(),now.second());
-//  delay(2000);
 }
 
 //=======================================================================//
@@ -171,25 +169,17 @@ void loop()
 
 void EEPROMalarmInput(int ALARM)
 {
-  alarmVariable bob;
-  static int inputCounter = 0;
+  alarmVariable writingSTRUCT;
+  static int inputCounter{};
   printf("EEPROM inputCounter at start of function = %i.\n\n", inputCounter);
   DateTime now = rtc.now();
-  //bob = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
-  bob.alarm = ALARM;
-  bob.year = now.year();
-  bob.month = now.month();
-  bob.day = now.day();
-  bob.hour = now.hour();
-  bob.minute = now.minute();
-  bob.second = now.second();
-  EEPROM.put(inputCounter, bob);
+  writingSTRUCT = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
+  EEPROM.put(inputCounter, writingSTRUCT);
   inputCounter += eepromAlarmDataSize;
   printf("ALARM %i saved.\n", (inputCounter/eepromAlarmDataSize));
-  Serial.println(ALARM);
-  printf("Date: %i/%i/%i\n", bob.year, bob.month, bob.day);
-  printf("Time: %i:%i:%i\n", bob.hour, bob.minute, bob.second);
-  //arrayCounter++;
+  printf("Alarm code: %i\n", ALARM);
+  printf("Date: %i/%i/%i\n", writingSTRUCT.year, writingSTRUCT.month, writingSTRUCT.day);
+  printf("Time: %i:%i:%i\n", writingSTRUCT.hour, writingSTRUCT.minute, writingSTRUCT.second);
   printf("inputCounter is now = %i.\n\n", inputCounter);
   if(inputCounter == eepromAlarmDataSize*10) 
   {
@@ -200,44 +190,43 @@ void EEPROMalarmInput(int ALARM)
 
 void EEPROMalarmPrint()
 {
-  alarmVariable fred;
-  static int outputCounter = 0;
-  EEPROM.get(outputCounter, fred);
+  char buffer[20];
+  alarmVariable readingSTRUCT;
+  static int outputCounter {};
+  EEPROM.get(outputCounter, readingSTRUCT);
   outputCounter += eepromAlarmDataSize;
   printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/eepromAlarmDataSize));
-  Serial.println(fred.alarm);
-  printf("Date: %i/%i/%i\n", fred.year,fred.month,fred.day);
-  printf("Time: %i:%i:%i\n",fred.hour,fred.minute,fred.second);
+  printf("Alarm code: %i\n", readingSTRUCT.alarm);
+  printf("Date: %i/%i/%i\n", readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
+  printf("Time: %i:%i:%i\n",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("EEPROM ALARM: ");
+  lcd.backlight();
+  lcd.print("SAVED ALARM: ");
   lcd.print(outputCounter/eepromAlarmDataSize);
   lcd.setCursor(0, 1);
-  if(fred.alarm == 1)
+  switch(readingSTRUCT.alarm)
   {
-    lcd.print(PrimaryString);
+    case 1: lcd.print(PrimaryString);break;
+    case 2: lcd.print(SecondaryString);break;
+    case 3: lcd.print(AlarmString);break;
+    case 4: lcd.print(hlpcString);break;
+    default: lcd.print("Generic Fault ERROR"); 
   }
   lcd.setCursor(0, 2);
-  lcd.print("Date: ");
-  lcd.print(fred.year);
-  lcd.print("/");
-  lcd.print(fred.month);
-  lcd.print("/");
-  lcd.print(fred.day);
+  sprintf(buffer,"Date: %i/%.2i/%.2i",readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
+  lcd.print(buffer);
   lcd.setCursor(0, 3);
-  lcd.print("Time: ");
-  lcd.print(fred.hour);
-  lcd.print(":");
-  lcd.print(fred.minute);
-  lcd.print(":");
-  lcd.print(fred.second);
+  sprintf(buffer,"Time: %.2i:%.2i:%.2i",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
+  lcd.print(buffer);
   printf("outputCounter is now = %i.\n\n", outputCounter);
-  if(outputCounter == eepromAlarmDataSize*3) 
+  if(outputCounter == eepromAlarmDataSize*10) 
   {
     outputCounter = 0;
     printf("REST outputCounter NOW.\n\n");
   }
   delay(5000);
+  lcd.noBacklight();
 }
 
 void print_alarms()
@@ -386,13 +375,13 @@ void primary_LW()
 
     if ( difference >= debounceInterval)
     {
-      EEPROMalarmInput(1);
-      printf("EEPROM() function Primary Low Water complete.\n");
       Serial.println(F("Primary low water.  Sending message"));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
        (urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
       Serial.println(F("message sent or simulated"));
+      EEPROMalarmInput(PLWCO);
+      printf("EEPROM() function Primary Low Water complete.\n");
       PLWCOSent = 1;
       alarmSwitch = false;
     }
@@ -434,7 +423,7 @@ void secondary_LW()
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LW2body);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LW2body);
       Serial.println(F("message sent or simulated"));
-      //EEPROMalarmInput(SecondaryString);
+      EEPROMalarmInput(SLWCO);
       printf("EEPROM() function 2nd Low Water complete.\n");
       SLWCOSent = 1;
       alarmSwitch2 = false;
@@ -482,7 +471,7 @@ void Honeywell_alarm()
       Serial.println(F("about to enter modbus reading function..."));
       readModbus();
       Serial.println(F("message sent or simulated"));
-      //EEPROMalarmInput(AlarmString);
+      EEPROMalarmInput(FSGalarm);
       printf("EEPROM() function FSG Alarm complete.\n");
       HWAlarmSent = 1;
       alarmSwitch3 = false;
@@ -528,7 +517,7 @@ void HLPC()
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, HLPCbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, HLPCbody);
       Serial.println(F("message sent or simulated"));
-      //EEPROMalarmInput(hlpcString);
+      EEPROMalarmInput(HighLimit);
       printf("EEPROM() function High Limit complete.\n");
       hlpcSent = 1;
       alarmSwitch4 = false;
@@ -664,13 +653,13 @@ void loadContacts()
 {
 //add an endpoint for data logging
 // contacts to recieve text messages
-String conFrom1 = "";
-String conTo1 = "";
-String conTo2 = "";
-String conTo3 = "";
-String URLheader = "";
+static String conFrom1 = "";
+static String conTo1 = "";
+static String conTo2 = "";
+static String conTo3 = "";
+static String URLheader = "";
 bool SDbegin {true};  
-  while (SDbegin)
+  while (SDbegin)  //what?*************************************************************************
   {
     if (!SD.begin(10)) Serial.println(F("SD card initialization failed! Remaining in SD.begin while loop"));
     else SDbegin = false;
