@@ -1,19 +1,3 @@
- /*
-  Rotary Encoder Demo
-  rot-encode-demo.ino
-  Demonstrates operation of Rotary Encoder
-  Displays results on Serial Monitor
-  DroneBot Workshop 2019
-  https://dronebotworkshop.com
-*/
-/* Read Quadrature Encoder
-   Connect Encoder to Pins encoder0PinA, encoder0PinB, and +5V.
-
-   Sketch by max wolf / www.meso.net
-   v. 0.1 - very basic functions - mw 20061220
-
-*/
-
 int val;
 int encoder0PinA = 4;
 int encoder0PinB = 3;
@@ -21,35 +5,56 @@ int encoder0Pos = 0;
 int encoder0PinALast = LOW;
 int n = LOW;
 int pushButton = 5;
+unsigned long LCDdebounce{};
+int debounceDelay{250};
+bool LCDswitch = false;
+
 
 void setup() 
 {
   pinMode (encoder0PinA, INPUT);
   pinMode (encoder0PinB, INPUT);
   pinMode (pushButton, INPUT_PULLUP);
-  digitalWrite (pushButton, HIGH);
+  //digitalWrite (pushButton, HIGH);
   Serial.begin (9600);
 }
 
-void loop() {
+void loop() 
+{ 
+  LCDDisplayEEPROM();
+}
+
+void LCDDisplayEEPROM()
+{
+  static bool userInput = false;
   
-  n = digitalRead(encoder0PinA);
+  if(digitalRead(pushButton) == LOW && LCDswitch == false)
+  {
+    LCDdebounce = millis();
+    LCDswitch = true;
+    Serial.println(millis());
+  }
+  if (digitalRead(pushButton) == LOW && (millis() - LCDdebounce) > debounceDelay)
+  {
+    Serial.println ("User Input Recieved");
+    userInput = !userInput;
+    LCDswitch = false;
+  }
+  if(userInput)
+  {
+    n = digitalRead(encoder0PinA);
   if ((encoder0PinALast == LOW) && (n == HIGH)) 
   {
     if (digitalRead(encoder0PinB) == LOW) 
     {
-      encoder0Pos--;
+      encoder0Pos--; //LCD.print statments from EEPROM here
     } 
     else 
     {
-      encoder0Pos++;
+      encoder0Pos++; //LCD.print statments from EEPROM here
     }
     Serial.println (encoder0Pos);
   }
   encoder0PinALast = n;
-  
-  if(digitalRead(pushButton) == LOW)
-  {
-    Serial.println ("Hello World");
   }
 }
