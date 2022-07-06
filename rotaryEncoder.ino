@@ -1,14 +1,9 @@
-int val;
-int encoder0PinA = 4;
-int encoder0PinB = 3;
-int encoder0Pos = 0;
-int encoder0PinALast = LOW;
-int n = LOW;
-int pushButton = 5;
-unsigned long LCDdebounce{};
-int debounceDelay{250};
-bool LCDswitch = false;
 
+const int pushButton = 5;
+const int encoder0PinA = 4;
+const int encoder0PinB = 3;
+static bool userInput = false; // when true display EEPROM faults
+                              // when false display current faults
 
 void setup() 
 {
@@ -26,19 +21,27 @@ void loop()
 
 void LCDDisplayEEPROM()
 {
-  static bool userInput = false;
+  static int LCDscreenPage = 0;
+  static int encoder0PinALast = LOW;
+  static int n = LOW;
+  static unsigned long LCDdebounce{};
+  static int debounceDelay{350};
+  static bool LCDTimerSwitch = false;
   
-  if(digitalRead(pushButton) == LOW && LCDswitch == false)
+  if(digitalRead(pushButton) == LOW && LCDTimerSwitch == false)
   {
     LCDdebounce = millis();
-    LCDswitch = true;
-    Serial.println(millis());
+    LCDTimerSwitch = true;
   }
   if (digitalRead(pushButton) == LOW && (millis() - LCDdebounce) > debounceDelay)
   {
-    Serial.println ("User Input Recieved");
+    if(userInput)
+    {
+      Serial.println ("User Input Recieved OFF");
+    }
+    else Serial.println ("User Input Recieved ON");
     userInput = !userInput;
-    LCDswitch = false;
+    LCDTimerSwitch = false;
   }
   if(userInput)
   {
@@ -47,14 +50,15 @@ void LCDDisplayEEPROM()
   {
     if (digitalRead(encoder0PinB) == LOW) 
     {
-      encoder0Pos--; //LCD.print statments from EEPROM here
+      LCDscreenPage--; //LCD.print statments from EEPROM here
     } 
     else 
     {
-      encoder0Pos++; //LCD.print statments from EEPROM here
+      LCDscreenPage++; //LCD.print statments from EEPROM here
     }
-    Serial.println (encoder0Pos);
+    Serial.println (LCDscreenPage);
   }
   encoder0PinALast = n;
   }
+  
 }
