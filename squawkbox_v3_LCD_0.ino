@@ -24,6 +24,10 @@ const int SIMpin {A3};      // this pin is routed to SIM pin 12 for boot (DF Rob
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 const int PLWCOoutletPin {17};
 const int SLWCOoutletPin {16};
+const int pushButton {5};   //=====================//
+const int encoderPinA {4};  // Rotary encoder pins //
+const int encoderPinB {3};  //=====================//
+
 const int debounceInterval {3000};//NEEDS TO BE MADE CHANGEABLE ON SD CARD
                                   // to prevent false alarms from electrical noise and also prevents repeat messages from bouncing PLWCOs.   
                                   // Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
@@ -44,8 +48,9 @@ static bool PLWCOSent{};
 static bool SLWCOSent{};
 static bool HWAlarmSent{};
 static bool hlpcSent{};
-// Twilio end point url (twilio might changes this!)
-static char urlHeaderArray[100];
+static bool userInput = false; // when true display EEPROM faults
+                               // when false display current faults
+static char urlHeaderArray[100]; // Twilio end point url (twilio might changes this!)
 // holds the phone number to recieve text messages
 static char contactFromArray1[25];
 static char contactToArray1[25];
@@ -125,6 +130,9 @@ void setup()
   pinMode(SIMpin, OUTPUT);
   digitalWrite(MAX485_RE_NEG, 0);
   digitalWrite(MAX485_DE, 0);
+  pinMode (encoderPinA, INPUT);
+  pinMode (encoderPinB, INPUT);
+  pinMode (pushButton, INPUT_PULLUP);
 
   node.begin(1, Serial);
   node.preTransmission(preTransmission);
@@ -160,7 +168,8 @@ void loop()
   HLPC();
   timedmsg();
   SMSRequest();
-  EEPROMalarmPrint();
+  LCDDisplayEEPROM();
+//  EEPROMalarmPrint();
 }
 
 //=======================================================================//
@@ -227,6 +236,53 @@ void EEPROMalarmPrint()
   }
   delay(5000);
   lcd.noBacklight();
+}
+
+void LCDDisplayEEPROM()
+{
+  static int LCDscreenPage {};
+  static int encoderPinALast {LOW};
+  static int n {LOW};
+  static unsigned long LCDdebounce{};
+  static int debounceDelay{350};
+  static bool LCDTimerSwitch {false};
+
+  // Using a timer to latch the momentary user input into a constant ON or OFF position
+  // LCDTimerSwitch is used to allow main loop to continue and LCDdebounce to only be set to millis() once per pushButton push
+  if(digitalRead(pushButton) == LOW && LCDTimerSwitch == false)
+  {
+    LCDdebounce = millis();
+    LCDTimerSwitch = true;
+  }
+  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+  if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
+  {
+    userInput = !userInput;
+    LCDTimerSwitch = false;
+    if(userInput)Serial.println ("User Input Recieved ON");
+    else Serial.println ("User Input Recieved OFF");
+  }
+  /*  The userInput bool is used as a latch so that the LCD screen continues to display what the user wants until the pushButton 
+   *  is activated again. When the above timer algorithm has been satisfied the squawk will begin tracking rotational rotary 
+   *  encoder input from the user in order to traverse and LCD display the EEPROM fault data.*/
+  if(userInput)
+  {
+    n = digitalRead(encoderPinA);
+    if ((encoderPinALast == LOW) && (n == HIGH)) 
+    {
+      if (digitalRead(encoderPinB) == LOW) 
+      {
+        LCDscreenPage--; //LCD.print statments from EEPROM here
+      } 
+      else 
+      {
+        LCDscreenPage++; //LCD.print statments from EEPROM here
+      }
+      Serial.println (LCDscreenPage);
+    }
+    encoderPinALast = n;
+  } 
 }
 
 void print_alarms()
