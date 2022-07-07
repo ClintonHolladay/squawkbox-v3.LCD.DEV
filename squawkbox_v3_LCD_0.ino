@@ -1,3 +1,9 @@
+// TODO:
+// SIM boot logic to make sure the SIM module is working upon booting.
+// Make print_alarms() able to display more than 4 alarms ?? is this nessicary.
+// Properly order the saved EEPROM faults.
+// Change the Serial.print() to printf().
+
 #include <SD.h>
 #include <ModbusMaster.h>
 #include <Wire.h> // Library for I2C communication
@@ -288,6 +294,7 @@ void LCDDisplayEEPROM()
     {
       if (digitalRead(encoderPinB) == LOW) 
       {
+        //Cuonter Clockwise turn
         EEPROMalarmPrint(LCDscreenPage, -1);
       } 
       else 
@@ -940,6 +947,7 @@ void readModbus() // getting FSG faults from the FSG
 
 void SIMboot() // starts up the SIM module
 {
+  // if(!SIMbooted) do the below
   digitalWrite(SIMpin, HIGH);
   delay(3000);
   digitalWrite(SIMpin, LOW);
