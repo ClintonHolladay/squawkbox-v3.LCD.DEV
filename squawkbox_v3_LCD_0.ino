@@ -7,7 +7,7 @@
 #include <LibPrintf.h>
 
 //#define PRINTF_DISABLE_ALL
-//#define printf(x...)
+#define printf(x...)
 //#define load_first_contact_number
 #define load_second_contact_number
 //#define load_third_contact_number
@@ -24,9 +24,9 @@ const int SIMpin {A3};      // this pin is routed to SIM pin 12 for boot (DF Rob
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 const int PLWCOoutletPin {17};
 const int SLWCOoutletPin {16};
-const int pushButton {5};   //=====================//
-const int encoderPinA {4};  // Rotary encoder pins //
-const int encoderPinB {3};  //=====================//
+const int pushButton {42};   //=====================//
+const int encoderPinA {44};  // Rotary encoder pins //
+const int encoderPinB {46};  //=====================//
 
 const int debounceInterval {3000};//NEEDS TO BE MADE CHANGEABLE ON SD CARD
                                   // to prevent false alarms from electrical noise and also prevents repeat messages from bouncing PLWCOs.   
@@ -156,7 +156,7 @@ void setup()
 }
 
 //=======================================================================//
-//================================LOOP()=================================//
+//============================= MAIN LOOP()==============================//
 //=======================================================================//
 
 void loop()
@@ -169,7 +169,6 @@ void loop()
   timedmsg();
   SMSRequest();
   LCDDisplayEEPROM();
-//  EEPROMalarmPrint();
 }
 
 //=======================================================================//
@@ -197,13 +196,31 @@ void EEPROMalarmInput(int ALARM)
   }
 }
 
-void EEPROMalarmPrint()
+void EEPROMalarmPrint(int& outputCounter, int upORdown)
 {
   char buffer[20];
   alarmVariable readingSTRUCT;
-  static int outputCounter {};
+//  static int outputCounter {};
+  if(upORdown > 0)
+  {
+    outputCounter += eepromAlarmDataSize;
+  }
+  else if (upORdown < 0)
+  {
+    outputCounter -= eepromAlarmDataSize;
+  }
+  else outputCounter = 0;
+  
+  if(outputCounter < 0)
+  {
+    outputCounter = 0;
+  }
+  if(outputCounter == eepromAlarmDataSize*10) 
+  {
+    outputCounter = 0;
+    printf("RESET outputCounter NOW.\n\n");
+  }
   EEPROM.get(outputCounter, readingSTRUCT);
-  outputCounter += eepromAlarmDataSize;
   printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/eepromAlarmDataSize));
   printf("Alarm code: %i\n", readingSTRUCT.alarm);
   printf("Date: %i/%i/%i\n", readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
@@ -212,7 +229,7 @@ void EEPROMalarmPrint()
   lcd.setCursor(0, 0);
   lcd.backlight();
   lcd.print("SAVED ALARM: ");
-  lcd.print(outputCounter/eepromAlarmDataSize);
+  lcd.print((outputCounter/eepromAlarmDataSize) + 1);
   lcd.setCursor(0, 1);
   switch(readingSTRUCT.alarm)
   {
@@ -229,13 +246,6 @@ void EEPROMalarmPrint()
   sprintf(buffer,"Time: %.2i:%.2i:%.2i",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
   lcd.print(buffer);
   printf("outputCounter is now = %i.\n\n", outputCounter);
-  if(outputCounter == eepromAlarmDataSize*10) 
-  {
-    outputCounter = 0;
-    printf("REST outputCounter NOW.\n\n");
-  }
-  delay(5000);
-  lcd.noBacklight();
 }
 
 void LCDDisplayEEPROM()
@@ -259,8 +269,13 @@ void LCDDisplayEEPROM()
   if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
   {
     userInput = !userInput;
+    LCDscreenPage = 0;
     LCDTimerSwitch = false;
-    if(userInput)Serial.println ("User Input Recieved ON");
+    if(userInput)
+    {
+      Serial.println("User Input Recieved ON");
+      EEPROMalarmPrint(LCDscreenPage, 0);
+    }
     else Serial.println ("User Input Recieved OFF");
   }
   /*  The userInput bool is used as a latch so that the LCD screen continues to display what the user wants until the pushButton 
@@ -273,11 +288,11 @@ void LCDDisplayEEPROM()
     {
       if (digitalRead(encoderPinB) == LOW) 
       {
-        LCDscreenPage--; //LCD.print statments from EEPROM here
+        EEPROMalarmPrint(LCDscreenPage, -1);
       } 
       else 
       {
-        LCDscreenPage++; //LCD.print statments from EEPROM here
+        EEPROMalarmPrint(LCDscreenPage, 1);
       }
       Serial.println (LCDscreenPage);
     }
@@ -290,123 +305,126 @@ void print_alarms()
   static bool ClearScreenSwitch {false};         // to be put into the complete LCD function
   static unsigned long ClearScreendifference {}; // to be put into the complete LCD function
   static unsigned long ClearScreenTime {};       // to be put into the complete LCD function
-  
-  if (ClearScreenSwitch == false)
-  {
-    ClearScreenTime = millis(); 
-    ClearScreenSwitch = true;
-  }
-    
-  ClearScreendifference = millis() - ClearScreenTime;
 
-  if ( ClearScreendifference >= debounceInterval)
+  if(!userInput)
   {
-    lcd.clear();
-    if (!PLWCOSent && !SLWCOSent && !HWAlarmSent && !hlpcSent)
+    if (ClearScreenSwitch == false)
     {
-      lcd.noBacklight();
-      lcd.setCursor(6, 1);
-      lcd.print("No Alarm");
+      ClearScreenTime = millis(); 
+      ClearScreenSwitch = true;
     }
-    else if (PLWCOSent && SLWCOSent && hlpcSent && HWAlarmSent )
+    
+    ClearScreendifference = millis() - ClearScreenTime;
+
+    if ( ClearScreendifference >= debounceInterval)
     {
-      lcd.print(PrimaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(SecondaryString);
-      lcd.setCursor(0, 2);
-      lcd.print(hlpcString);
-      lcd.setCursor(0, 3);
-      lcd.print(AlarmString); 
+      lcd.clear();
+      if (!PLWCOSent && !SLWCOSent && !HWAlarmSent && !hlpcSent)
+      {
+        lcd.noBacklight();
+        lcd.setCursor(6, 1);
+        lcd.print("No Alarm");
+      }
+      else if (PLWCOSent && SLWCOSent && hlpcSent && HWAlarmSent )
+      {
+        lcd.print(PrimaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(SecondaryString);
+        lcd.setCursor(0, 2);
+        lcd.print(hlpcString);
+        lcd.setCursor(0, 3);
+        lcd.print(AlarmString); 
+      }
+      else if (SLWCOSent && hlpcSent && HWAlarmSent)
+      {
+        lcd.print(SecondaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(hlpcString);
+        lcd.setCursor(0, 2);
+        lcd.print(AlarmString); 
+      }
+      else if (PLWCOSent && SLWCOSent && hlpcSent)
+      {
+        lcd.print(PrimaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(SecondaryString);
+        lcd.setCursor(0, 2);
+        lcd.print(hlpcString); 
+      }
+      else if (PLWCOSent && SLWCOSent && HWAlarmSent)
+      {
+        lcd.print(PrimaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(SecondaryString);
+        lcd.setCursor(0, 2);
+        lcd.print(AlarmString);  
+      }
+      else if (PLWCOSent && hlpcSent && HWAlarmSent)
+      {
+        lcd.print(PrimaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(hlpcString);
+        lcd.setCursor(0, 2);
+        lcd.print(AlarmString); 
+      }
+      else if (PLWCOSent && SLWCOSent)
+      {
+        lcd.print(PrimaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(SecondaryString);
+      }
+      else if (PLWCOSent && hlpcSent)
+      {
+        lcd.print(PrimaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(hlpcString);
+      }
+      else if (PLWCOSent && HWAlarmSent)
+      {
+        lcd.print(PrimaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(AlarmString);
+      }
+      else if (SLWCOSent && hlpcSent)
+      {
+        lcd.print(SecondaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(hlpcString);
+      }
+      else if (SLWCOSent && HWAlarmSent)
+      {
+        lcd.print(SecondaryString);
+        lcd.setCursor(0, 1);
+        lcd.print(AlarmString);
+      }
+      else if (hlpcSent && HWAlarmSent)
+      {
+        lcd.print(hlpcString);
+        lcd.setCursor(0, 1);
+        lcd.print(AlarmString);
+      }
+      else if (PLWCOSent)
+      {
+        lcd.backlight();
+        lcd.print(PrimaryString);
+      }
+      else if (SLWCOSent)
+      {
+        lcd.backlight();
+        lcd.print(SecondaryString);
+      }
+      else if (HWAlarmSent)
+      {
+        lcd.backlight();
+        lcd.print(AlarmString);
+      }
+      else if (hlpcSent)
+      {
+        lcd.backlight();
+        lcd.print(hlpcString);
+      }
+      ClearScreenSwitch = false;
     }
-    else if (SLWCOSent && hlpcSent && HWAlarmSent)
-    {
-      lcd.print(SecondaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(hlpcString);
-      lcd.setCursor(0, 2);
-      lcd.print(AlarmString); 
-    }
-    else if (PLWCOSent && SLWCOSent && hlpcSent)
-    {
-      lcd.print(PrimaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(SecondaryString);
-      lcd.setCursor(0, 2);
-      lcd.print(hlpcString); 
-    }
-    else if (PLWCOSent && SLWCOSent && HWAlarmSent)
-    {
-      lcd.print(PrimaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(SecondaryString);
-      lcd.setCursor(0, 2);
-      lcd.print(AlarmString);  
-    }
-    else if (PLWCOSent && hlpcSent && HWAlarmSent)
-    {
-      lcd.print(PrimaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(hlpcString);
-      lcd.setCursor(0, 2);
-      lcd.print(AlarmString); 
-    }
-    else if (PLWCOSent && SLWCOSent)
-    {
-      lcd.print(PrimaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(SecondaryString);
-    }
-    else if (PLWCOSent && hlpcSent)
-    {
-      lcd.print(PrimaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(hlpcString);
-    }
-    else if (PLWCOSent && HWAlarmSent)
-    {
-      lcd.print(PrimaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(AlarmString);
-    }
-    else if (SLWCOSent && hlpcSent)
-    {
-      lcd.print(SecondaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(hlpcString);
-    }
-    else if (SLWCOSent && HWAlarmSent)
-    {
-      lcd.print(SecondaryString);
-      lcd.setCursor(0, 1);
-      lcd.print(AlarmString);
-    }
-    else if (hlpcSent && HWAlarmSent)
-    {
-      lcd.print(hlpcString);
-      lcd.setCursor(0, 1);
-      lcd.print(AlarmString);
-    }
-    else if (PLWCOSent)
-    {
-      lcd.backlight();
-      lcd.print(PrimaryString);
-    }
-    else if (SLWCOSent)
-    {
-      lcd.backlight();
-      lcd.print(SecondaryString);
-    }
-    else if (HWAlarmSent)
-    {
-      lcd.backlight();
-      lcd.print(AlarmString);
-    }
-    else if (hlpcSent)
-    {
-      lcd.backlight();
-      lcd.print(hlpcString);
-    }
-    ClearScreenSwitch = false;
   }
 }
 
@@ -662,7 +680,6 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
 {
   char incomingChar {};
   //add message for changing the operators phone number
-  delay(100);
   if (Serial1.available() > 0) 
   {
     incomingChar = Serial1.read();
