@@ -292,6 +292,7 @@ void LCDDisplayEEPROM()
       } 
       else 
       {
+        //Clockwise turn
         EEPROMalarmPrint(LCDscreenPage, 1);
       }
       Serial.println (LCDscreenPage);
