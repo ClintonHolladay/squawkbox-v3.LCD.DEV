@@ -3,6 +3,9 @@
 // Make print_alarms() able to display more than 4 alarms ?? is this nessicary.
 // Properly order the saved EEPROM faults.
 // Change the Serial.print() to printf().
+// Change Strings to char[].
+// Add LCD "WAITING" screen to alarm functions
+// EEPROM initiallization function
 
 #include <SD.h>
 #include <ModbusMaster.h>
@@ -12,8 +15,11 @@
 #include <RTClib.h>
 #include <LibPrintf.h>
 
+      ////#define UP 1
+      ////#define DOWN -1
+      ////#define START 0
 //#define PRINTF_DISABLE_ALL
-#define printf(x...)
+//#define printf(x...)
 //#define load_first_contact_number
 #define load_second_contact_number
 //#define load_third_contact_number
@@ -76,8 +82,10 @@ struct alarmVariable
    byte second; 
 };
 
+//EEPROM variables
 const int eepromAlarmDataSize = sizeof(alarmVariable); 
-
+static int EEPROMinputCounter{};
+const int EEPROMinputCounterAddress {500};
 enum EEPROMAlarmCode {PLWCO = 1, SLWCO, FSGalarm, HighLimit};
 
 //================INSTANTIATION================//
@@ -156,14 +164,31 @@ void setup()
   Serial.println(F("Contacts Loaded.  Booting SIM module.  Initiating wakeup sequence..."));
   delay(2000);
   initiateSim();
+
+// EEPROM initiallization function
+  if(EEPROM.read(420) == 69) //Could also just write ALL EEPROM values to any arbitrary value 
+  {
+    EEPROM.get(EEPROMinputCounterAddress, EEPROMinputCounter);
+  }
+  else 
+  {
+    EEPROM.write(420, 69);
+    EEPROM.put(EEPROMinputCounterAddress, 0);
+    //Add code that fills fault storage space with default data
+  }
+    
   Serial.println(F("Setup() Function complete. Entering Main Loop() Function"));
   lcd.clear();
   lcd.noBacklight();
 }
 
+
+//=======================================================================//
 //=======================================================================//
 //============================= MAIN LOOP()==============================//
 //=======================================================================//
+//=======================================================================//
+
 
 void loop()
 {
@@ -174,52 +199,74 @@ void loop()
   HLPC();
   timedmsg();
   SMSRequest();
-  LCDDisplayEEPROM();
+  UserInputAccessEEPROM();
+  //printf("%u\n",millis());
 }
 
+
 //=======================================================================//
-//=======================FUNCTION DECLARATIONS===========================//
+//=======================================================================//
+//====================== FUNCTION DECLARATIONS ==========================//
+//=======================================================================//
 //=======================================================================//
 
-void EEPROMalarmInput(int ALARM)
+
+void EEPROMalarmInput(int ALARM) // we are inputing into the EEPROM NOT the program
 {
   alarmVariable writingSTRUCT;
-  static int inputCounter{};
-  printf("EEPROM inputCounter at start of function = %i.\n\n", inputCounter);
+  printf("EEPROMinputCounter at start of function = %i.\n\n", EEPROMinputCounter);
   DateTime now = rtc.now();
   writingSTRUCT = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
-  EEPROM.put(inputCounter, writingSTRUCT);
-  inputCounter += eepromAlarmDataSize;
-  printf("ALARM %i saved.\n", (inputCounter/eepromAlarmDataSize));
+  EEPROM.put(EEPROMinputCounter, writingSTRUCT);
+  EEPROMinputCounter += eepromAlarmDataSize;
+  printf("ALARM saved in EEPROM slot %i.\n", (EEPROMinputCounter/eepromAlarmDataSize));
   printf("Alarm code: %i\n", ALARM);
   printf("Date: %i/%i/%i\n", writingSTRUCT.year, writingSTRUCT.month, writingSTRUCT.day);
   printf("Time: %i:%i:%i\n", writingSTRUCT.hour, writingSTRUCT.minute, writingSTRUCT.second);
-  printf("inputCounter is now = %i.\n\n", inputCounter);
-  if(inputCounter == eepromAlarmDataSize*10) 
+  printf("EEPROMinputCounter is now = %i.\n\n", EEPROMinputCounter);
+  if(EEPROMinputCounter == eepromAlarmDataSize*10) 
   {
-    inputCounter = 0;
-    printf("\nREST inputCounter NOW.\n\n");
+    EEPROMinputCounter = 0;
+    printf("\nREST EEPROMinputCounter NOW.\n\n");
   }
+  EEPROM.put(EEPROMinputCounterAddress, EEPROMinputCounter);
 }
 
 void EEPROMalarmPrint(int& outputCounter, int upORdown)
 {
   char buffer[20];
+  static int SavedAlarmCounter {};
   alarmVariable readingSTRUCT;
-//  static int outputCounter {};
+  
+// Logic for determining if the user is turning the knob CW, CCW, or just pushed the button
   if(upORdown > 0)
   {
-    outputCounter += eepromAlarmDataSize;
+    outputCounter -= eepromAlarmDataSize;
+    SavedAlarmCounter++;
+    if(SavedAlarmCounter > 10)// Recycle
+    {
+      SavedAlarmCounter = 1;
+    }
   }
   else if (upORdown < 0)
   {
-    outputCounter -= eepromAlarmDataSize;
+    outputCounter += eepromAlarmDataSize;
+    SavedAlarmCounter--;
+    if(SavedAlarmCounter < 1)// Recycle
+    {
+      SavedAlarmCounter = 10;
+    }
   }
-  else outputCounter = 0;
-  
+  else // upORdown == 0
+  {
+    outputCounter = EEPROMinputCounter - eepromAlarmDataSize;
+    SavedAlarmCounter = 1;
+  }
+
+// Recycle the EEPROM address (outputCounter) in a loop fashion
   if(outputCounter < 0)
   {
-    outputCounter = 0;
+    outputCounter = eepromAlarmDataSize*9;
   }
   if(outputCounter == eepromAlarmDataSize*10) 
   {
@@ -227,7 +274,8 @@ void EEPROMalarmPrint(int& outputCounter, int upORdown)
     printf("RESET outputCounter NOW.\n\n");
   }
   EEPROM.get(outputCounter, readingSTRUCT);
-  printf("EEPROM ALARM %i is retrieved.\n", (outputCounter/eepromAlarmDataSize));
+  printf("EEPROMinputCounter is %i\n",EEPROMinputCounter);
+  printf("EEPROM ALARM is retrieved from slot %i.\n", ((outputCounter / eepromAlarmDataSize) + 1));
   printf("Alarm code: %i\n", readingSTRUCT.alarm);
   printf("Date: %i/%i/%i\n", readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
   printf("Time: %i:%i:%i\n",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
@@ -235,7 +283,7 @@ void EEPROMalarmPrint(int& outputCounter, int upORdown)
   lcd.setCursor(0, 0);
   lcd.backlight();
   lcd.print("SAVED ALARM: ");
-  lcd.print((outputCounter/eepromAlarmDataSize) + 1);
+  lcd.print(SavedAlarmCounter);
   lcd.setCursor(0, 1);
   switch(readingSTRUCT.alarm)
   {
@@ -254,7 +302,7 @@ void EEPROMalarmPrint(int& outputCounter, int upORdown)
   printf("outputCounter is now = %i.\n\n", outputCounter);
 }
 
-void LCDDisplayEEPROM()
+void UserInputAccessEEPROM()
 {
   static int LCDscreenPage {};
   static int encoderPinALast {LOW};
@@ -294,7 +342,7 @@ void LCDDisplayEEPROM()
     {
       if (digitalRead(encoderPinB) == LOW) 
       {
-        //Cuonter Clockwise turn
+        //Counter Clockwise turn
         EEPROMalarmPrint(LCDscreenPage, -1);
       } 
       else 
@@ -302,7 +350,6 @@ void LCDDisplayEEPROM()
         //Clockwise turn
         EEPROMalarmPrint(LCDscreenPage, 1);
       }
-      Serial.println (LCDscreenPage);
     }
     encoderPinALast = n;
   } 
@@ -691,7 +738,6 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
   if (Serial1.available() > 0) 
   {
     incomingChar = Serial1.read();
-    Serial.print(incomingChar);
     if (incomingChar == 'C') 
     {
       delay(100);
