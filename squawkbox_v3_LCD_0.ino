@@ -2,10 +2,15 @@
 // Make print_alarms() able to display more 200 alarms
 // Change the Serial.print() to printf().
 // Change Strings to char[].
-// Add LCD "WAITING" screen to alarm functions
 // Create EEPROM initiallization function
     // add EEPROM fault default prefill into this function
 // setup data logging
+// reassess how values are passed in UserInputAccessEEPROM()
+// Add functions for Flame sensor() / Pump amps() / Aw Na box() / any others???
+// Create function for User input Text to change personal phone number
+// Create function for User input Text to turn OFF or ON personal text messages
+
+
 
 #include <SD.h>
 #include <ModbusMaster.h>
@@ -504,6 +509,7 @@ void primary_LW()
 
     if ( difference >= debounceInterval)
     {
+      LCDwaiting();
       Serial.println(F("Primary low water.  Sending message"));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
        (urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
@@ -547,6 +553,7 @@ void secondary_LW()
 
     if ( difference2 >= debounceInterval)
     {
+      LCDwaiting();
       Serial.println(F("Secondary low water.  Sending message."));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LW2body);
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LW2body);
@@ -591,6 +598,7 @@ void Honeywell_alarm()
 
     if ( difference3 >= debounceInterval)
     {
+      LCDwaiting();
       Serial.println(F("sending alarm message"));
       Serial.println(F("about to enter modbus reading function..."));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, BCbody);
@@ -641,6 +649,7 @@ void HLPC()
 
     if ( difference4 >= debounceInterval)
     {
+      LCDwaiting();
       Serial.println("Sending HPLC alarm message");
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, HLPCbody);
       sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, HLPCbody);
@@ -1075,4 +1084,18 @@ void initiateSim()
   //sendSMS(urlHeaderArray, contactFromArray1, contactToArray3, SetCombody);
   delay(2000);
   Serial.println(F("initiateSim() complete."));
+}
+
+void LCDwaiting()
+{
+  lcd.clear();
+  lcd.backlight();
+  lcd.setCursor(4, 0);
+  lcd.print("PLEASE WAIT");
+  lcd.setCursor(3, 1);
+  lcd.print("SENDING ALARM");
+  lcd.setCursor(6, 2);
+  lcd.print("MESSAGE");
+  lcd.setCursor(4, 3);
+  lcd.print("PLEASE WAIT");
 }
