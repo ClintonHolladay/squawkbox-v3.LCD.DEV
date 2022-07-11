@@ -1,11 +1,11 @@
 // TODO:
-// SIM boot logic to make sure the SIM module is working upon booting.
-// Make print_alarms() able to display more than 4 alarms ?? is this nessicary.
-// Properly order the saved EEPROM faults.
+// Make print_alarms() able to display more 200 alarms
 // Change the Serial.print() to printf().
 // Change Strings to char[].
 // Add LCD "WAITING" screen to alarm functions
-// EEPROM initiallization function
+// Create EEPROM initiallization function
+    // add EEPROM fault default prefill into this function
+// setup data logging
 
 #include <SD.h>
 #include <ModbusMaster.h>
@@ -991,12 +991,38 @@ void readModbus() // getting FSG faults from the FSG
   }
 }
 
-void SIMboot() // starts up the SIM module
+void SIMboot()
 {
-  // if(!SIMbooted) do the below
-  digitalWrite(SIMpin, HIGH);
-  delay(3000);
-  digitalWrite(SIMpin, LOW);
+//This function only boots the SIM module if it needs to be booted
+//This prevents nuisance power-downs upon startup
+  unsigned char sim_buffer {};
+  for (int i = 0; i < 10; i++)
+  {
+    for (int j = 0; j < 5; j++)
+    {
+      Serial1.print("AT\r"); //blank AT command elicits a response of OK
+      delay(50);
+    }
+    if (Serial1.available())
+    {
+      while (Serial1.available())
+      {
+        sim_buffer = Serial1.read();
+        Serial.write(sim_buffer);
+      }
+      printf("SIM module appears to be on.  No need to boot\n");
+      return;
+    }
+    else 
+    {
+      printf("SIM module appears to be off.  Attempting boot...\n");
+      digitalWrite(SIMpin, HIGH);
+      delay(3000);
+      digitalWrite(SIMpin, LOW);
+      printf("boot attempted.  wait 10 seconds\n");
+      delay(10000);
+    }
+  }
 }
 
 void initiateSim()
