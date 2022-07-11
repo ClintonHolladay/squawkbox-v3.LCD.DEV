@@ -1,15 +1,14 @@
 // TODO:
+// Complete EEPROM initiallization function with fault fill
 // Make print_alarms() able to display more 200 alarms
 // Change the Serial.print() to printf().
 // Change Strings to char[].
-// Create EEPROM initiallization function
     // add EEPROM fault default prefill into this function
 // setup data logging
 // reassess how values are passed in UserInputAccessEEPROM()
 // Add functions for Flame sensor() / Pump amps() / Aw Na box() / any others???
 // Create function for User input Text to change personal phone number
 // Create function for User input Text to turn OFF or ON personal text messages
-
 
 
 #include <SD.h>
@@ -90,7 +89,9 @@ struct alarmVariable
 //EEPROM variables
 const int eepromAlarmDataSize = sizeof(alarmVariable); 
 static int EEPROMinputCounter{};
-const int EEPROMinputCounterAddress {500};
+const uint8_t EEPROMInitializationKey {69};
+const int EEPROMInitializationAddress {4020};
+const int EEPROMinputCounterAddress {4000};
 enum EEPROMAlarmCode {PLWCO = 1, SLWCO, FSGalarm, HighLimit};
 
 //================INSTANTIATION================//
@@ -169,18 +170,7 @@ void setup()
   Serial.println(F("Contacts Loaded.  Booting SIM module.  Initiating wakeup sequence..."));
   delay(2000);
   initiateSim();
-
-// EEPROM initiallization function
-  if(EEPROM.read(420) == 69) //Could also just write ALL EEPROM values to any arbitrary value 
-  {
-    EEPROM.get(EEPROMinputCounterAddress, EEPROMinputCounter);
-  }
-  else 
-  {
-    EEPROM.write(420, 69);
-    EEPROM.put(EEPROMinputCounterAddress, 0);
-    //Add code that fills fault storage space with default data
-  }
+  EEPROM_Prefill();
     
   Serial.println(F("Setup() Function complete. Entering Main Loop() Function"));
   lcd.clear();
@@ -197,6 +187,7 @@ void setup()
 
 void loop()
 {
+  printf("eepromAlarmDataSize is: %i\n",eepromAlarmDataSize);
   print_alarms();
   primary_LW();
   secondary_LW();
@@ -1098,4 +1089,19 @@ void LCDwaiting()
   lcd.print("MESSAGE");
   lcd.setCursor(4, 3);
   lcd.print("PLEASE WAIT");
+}
+
+void EEPROM_Prefill()// EEPROM initiallization function
+{
+  if(EEPROM.read(EEPROMInitializationAddress) == EEPROMInitializationKey) //If this is true then the EEPROM has already been initialized.  
+  {
+    printf("\n***EEPROM has been previously initialized***\n");
+    EEPROM.get(EEPROMinputCounterAddress, EEPROMinputCounter);
+  }
+  else 
+  {
+    EEPROM.write(EEPROMInitializationAddress, EEPROMInitializationKey);
+    EEPROM.put(EEPROMinputCounterAddress, EEPROMinputCounter);
+    //Add code that fills fault storage space with default data
+  }
 }
