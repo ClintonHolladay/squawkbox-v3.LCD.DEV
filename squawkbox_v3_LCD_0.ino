@@ -1,14 +1,15 @@
 // TODO:
-// Complete EEPROM initiallization function with fault fill
-// Make print_alarms() able to display more 200 alarms
 // Change the Serial.print() to printf().
 // Change Strings to char[].
-    // add EEPROM fault default prefill into this function
 // setup data logging
 // reassess how values are passed in UserInputAccessEEPROM()
 // Add functions for Flame sensor() / Pump amps() / Aw Na box() / any others???
 // Create function for User input Text to change personal phone number
 // Create function for User input Text to turn OFF or ON personal text messages
+// Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate
+// Display blow down reminder after 48 hours of no PLWCO 
+// send blow down text after 72 hours of no PLWCO 
+
 
 
 #include <SD.h>
@@ -19,9 +20,9 @@
 #include <RTClib.h>
 #include <LibPrintf.h>
 
-      ////#define UP 1
-      ////#define DOWN -1
-      ////#define START 0
+#define CW 1
+#define CCW -1
+#define PUSH_BUTTON 0
 //#define PRINTF_DISABLE_ALL
 //#define printf(x...)
 //#define load_first_contact_number
@@ -51,6 +52,7 @@ const char PrimaryString[] {"Primary Low Water"};     // =======================
 const char SecondaryString[] {"Secondary Low Water"}; // alarm text printed to the LCD screen//
 const char hlpcString[] {"High Limit"};               // alarm text printed to the LCD screen//
 const char AlarmString[] {"FSG Alarm"};               // ====================================//
+const char DefaultString[] {"Open Fault Memory"};     // ====================================//
 // message to be sent
 const char SetCombody[] = "Body=Setup%20Complete\"\r";
 const char LWbody[] = "Body=Low%20Water\"\r";
@@ -87,11 +89,13 @@ struct alarmVariable
 };
 
 //EEPROM variables
+const int numberOfSavedFaults {400};
 const int eepromAlarmDataSize = sizeof(alarmVariable); 
 static int EEPROMinputCounter{};
 const uint8_t EEPROMInitializationKey {69};
 const int EEPROMInitializationAddress {4020};
 const int EEPROMinputCounterAddress {4000};
+const int EEPROMLastFaultAddress {3600};
 enum EEPROMAlarmCode {PLWCO = 1, SLWCO, FSGalarm, HighLimit};
 
 //================INSTANTIATION================//
@@ -171,7 +175,6 @@ void setup()
   delay(2000);
   initiateSim();
   EEPROM_Prefill();
-    
   Serial.println(F("Setup() Function complete. Entering Main Loop() Function"));
   lcd.clear();
   lcd.noBacklight();
@@ -187,7 +190,6 @@ void setup()
 
 void loop()
 {
-  printf("eepromAlarmDataSize is: %i\n",eepromAlarmDataSize);
   print_alarms();
   primary_LW();
   secondary_LW();
@@ -220,7 +222,7 @@ void EEPROMalarmInput(int ALARM) // we are inputing into the EEPROM NOT the prog
   printf("Date: %i/%i/%i\n", writingSTRUCT.year, writingSTRUCT.month, writingSTRUCT.day);
   printf("Time: %i:%i:%i\n", writingSTRUCT.hour, writingSTRUCT.minute, writingSTRUCT.second);
   printf("EEPROMinputCounter is now = %i.\n\n", EEPROMinputCounter);
-  if(EEPROMinputCounter == eepromAlarmDataSize*10) 
+  if(EEPROMinputCounter == (eepromAlarmDataSize * numberOfSavedFaults)) 
   {
     EEPROMinputCounter = 0;
     printf("\nREST EEPROMinputCounter NOW.\n\n");
@@ -228,32 +230,32 @@ void EEPROMalarmInput(int ALARM) // we are inputing into the EEPROM NOT the prog
   EEPROM.put(EEPROMinputCounterAddress, EEPROMinputCounter);
 }
 
-void EEPROMalarmPrint(int& outputCounter, int upORdown)
+void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)
 {
   char buffer[20];
-  static int SavedAlarmCounter {};
+  static int SavedAlarmCounter {};// The number displayed on the LCD screen after "SAVED ALARM:" (1 indicates the most recent saved alarm)
   alarmVariable readingSTRUCT;
   
 // Logic for determining if the user is turning the knob CW, CCW, or just pushed the button
-  if(upORdown > 0)
+  if(encoderTurnDirection == CW)//User turned the dial ClockWise
   {
-    outputCounter -= eepromAlarmDataSize;
+    outputCounter -= eepromAlarmDataSize;//outputCounter will always be one eepromAlarmDataSize less than the EEPROMinputCounter
     SavedAlarmCounter++;
-    if(SavedAlarmCounter > 10)// Recycle
+    if(SavedAlarmCounter > numberOfSavedFaults)// Recycle
     {
       SavedAlarmCounter = 1;
     }
   }
-  else if (upORdown < 0)
+  else if (encoderTurnDirection == CCW)//User tunred the dial CounterClockWise
   {
     outputCounter += eepromAlarmDataSize;
     SavedAlarmCounter--;
     if(SavedAlarmCounter < 1)// Recycle
     {
-      SavedAlarmCounter = 10;
+      SavedAlarmCounter = numberOfSavedFaults;
     }
   }
-  else // upORdown == 0
+  else // encoderTurnDirection == PUSH_BUTTON == (0) This is when the user first pushes the rotary encoder
   {
     outputCounter = EEPROMinputCounter - eepromAlarmDataSize;
     SavedAlarmCounter = 1;
@@ -262,16 +264,16 @@ void EEPROMalarmPrint(int& outputCounter, int upORdown)
 // Recycle the EEPROM address (outputCounter) in a loop fashion
   if(outputCounter < 0)
   {
-    outputCounter = eepromAlarmDataSize*9;
+    outputCounter = eepromAlarmDataSize * (numberOfSavedFaults - 1); //The inputCounter recyles when it gets to numberOfSavedFaults, so that exact address never actually gets used, hence the - 1.
   }
-  if(outputCounter == eepromAlarmDataSize*10) 
+  if(outputCounter == (eepromAlarmDataSize * numberOfSavedFaults)) 
   {
     outputCounter = 0;
     printf("RESET outputCounter NOW.\n\n");
   }
   EEPROM.get(outputCounter, readingSTRUCT);
   printf("EEPROMinputCounter is %i\n",EEPROMinputCounter);
-  printf("EEPROM ALARM is retrieved from slot %i.\n", ((outputCounter / eepromAlarmDataSize) + 1));
+  printf("EEPROM ALARM is retrieved from slot %i.\n", ((outputCounter / eepromAlarmDataSize) + 1)); //outputCounter will always be one eepromAlarmDataSize less than the EEPROMinputCounter
   printf("Alarm code: %i\n", readingSTRUCT.alarm);
   printf("Date: %i/%i/%i\n", readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
   printf("Time: %i:%i:%i\n",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
@@ -287,6 +289,7 @@ void EEPROMalarmPrint(int& outputCounter, int upORdown)
     case 2: lcd.print(SecondaryString);break;
     case 3: lcd.print(AlarmString);break;
     case 4: lcd.print(hlpcString);break;
+    case 255: lcd.print(DefaultString);break;
     default: lcd.print("Generic Fault ERROR"); 
   }
   lcd.setCursor(0, 2);
@@ -1091,17 +1094,33 @@ void LCDwaiting()
   lcd.print("PLEASE WAIT");
 }
 
-void EEPROM_Prefill()// EEPROM initiallization function
+void EEPROM_Prefill()// EEPROM initialization function
 {
+  // Do we need redundancy here? 
   if(EEPROM.read(EEPROMInitializationAddress) == EEPROMInitializationKey) //If this is true then the EEPROM has already been initialized.  
   {
-    printf("\n***EEPROM has been previously initialized***\n");
+    printf("\n***EEPROM has been previously initialized.***\n");
     EEPROM.get(EEPROMinputCounterAddress, EEPROMinputCounter);
   }
   else 
   {
+    printf("\n***EEPROM is uninitialized... PreFilling EEPROM Faults now.***\n\n");
     EEPROM.write(EEPROMInitializationAddress, EEPROMInitializationKey);
-    EEPROM.put(EEPROMinputCounterAddress, EEPROMinputCounter);
-    //Add code that fills fault storage space with default data
+    EEPROM.put (EEPROMinputCounterAddress, EEPROMinputCounter);
+    const alarmVariable prefillSTRUCT = {255, 1111, 11, 11, 11, 11, 11};
+    for (int i = 0; i < EEPROMLastFaultAddress; i += eepromAlarmDataSize)
+    {
+      EEPROM.put(i, prefillSTRUCT);
+    }
+  //  alarmVariable readingSTRUCT;
+  //  for ( int i = 0; i < EEPROMLastFaultAddress; i += eepromAlarmDataSize)
+  //  {
+  //    EEPROM.get(i,readingSTRUCT);
+  //    printf("EEPROMinputCounter is %i \n",i);
+  //    printf("EEPROM ALARM is retrieved from slot %i.\n",((i/eepromAlarmDataSize) + 1));
+  //    printf("Alarm code: %i\n", readingSTRUCT.alarm);
+  //    printf("Date: %i/%i/%i\n",readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
+  //    printf("Time: %i:%i:%i\n",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
+  //  }
   }
 }
