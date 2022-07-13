@@ -1,74 +1,55 @@
 #include <SD.h>   
-#include <dht.h>  
 
-
-#define DHT11_PIN 14  //Sensor output pin is connected to pin 14.  This can be changed
-
-dht DHT;  //instantiating the dht sensor and naming it DHT
-
-
-void setup() {
+void setup() 
+{
   Serial.begin(9600);
-  Initialize_SDcard();  
-  digitalWrite(33, HIGH);
+  boot_SDcard();  
 }
 
-void loop() {
-
-  Write_SDcard();
-
-  delay(5000);  //Wait for 60 seconds before writing the next data
+void loop() 
+{
+  Data_Logger();
 }
 
-void Write_SDcard() {
-  int chk = DHT.read11(DHT11_PIN);
-
-  int temp = DHT.temperature;
-
-  int tempF = ((temp * (1.8)) + 32);
-
-
-  File dataFile = SD.open("LoggerCD.txt", FILE_WRITE);
-
-
-
-  if (dataFile) {
-
-
-    dataFile.print(millis());
+void Data_Logger(const char& FAULT[]) 
+{
+  DateTime now = rtc.now();
+  File dataFile = SD.open("DataLogger.txt", FILE_WRITE);
+  if (dataFile) 
+  {
+    dataFile.print(FAULT);
     dataFile.print(",");
-
-    dataFile.print(tempF);  //Store date on SD card
-    dataFile.print(",");      //Move to next column using a ","
-
-
-    dataFile.print(DHT.humidity);  //Store date on SD card
-    dataFile.print(",");           //Move to next column using a ","
-
-
+    dataFile.print(now.year());  
+    dataFile.print(",");      
+    dataFile.print(now.month());  
+    dataFile.print(",");
+    dataFile.print(now.day());  
+    dataFile.print(",");
+    dataFile.print(now.hour());  
+    dataFile.print(",");
+    dataFile.print(now.minute());  
+    dataFile.print(",");
+    dataFile.print(now.second());  
+    dataFile.print(",");
     dataFile.println();  //End of Row move to next row
     dataFile.close();    //Close the file
-    Serial.println(millis());
-    Serial.print("Temp is: ");
-    Serial.println(tempF);
-    Serial.print("Humidity is: ");
-    Serial.println(DHT.humidity);
-  } else
-    Serial.println("SD card writing failed");
+    printf("Data Log Complete.\n");
+  } 
+  else
+  {
+    printf("Data Log failed");
+  }
 }
 
-
-void Initialize_SDcard() {
+void boot_SDcard() {
   // see if the card is present and can be initialized:
-  if (!SD.begin(BUILTIN_SDCARD)) {
-    Serial.println("Card failed or not present");
+  if (!SD.begin(10)) {
+    printf("Card failed or not present");
     return;
   }
-
-  File dataFile = SD.open("LoggerCD.txt", FILE_WRITE);
-
+  File dataFile = SD.open("DataLogger.txt", FILE_WRITE);
   if (dataFile) {
-    dataFile.println("Time,Temperature,Humidity");  //Write the first row of the csv
+    dataFile.println("Fault,Year,Month,Day,Hour,Minute,Second");
     dataFile.close();
   }
 }
