@@ -1,7 +1,6 @@
 // TODO:
 // Change the Serial.print() to printf().
 // Change Strings to char[].
-// setup data logging.
 // reassess how values are passed in UserInputAccessEEPROM().
 // Add functions for Flame sensor() / Pump amps() / Aw Na box() / any others???
 // Create function for User input Text to change personal phone number.
@@ -74,9 +73,7 @@ static bool userInput = false; // when true display EEPROM faults
 static char urlHeaderArray[100]; // Twilio end point url (twilio might changes this!)
 // holds the phone number to recieve text messages
 static char contactFromArray1[25];
-static char contactToArray1[25];
-static char contactToArray2[25];
-static char contactToArray3[25];
+static char conToTotalArray[60];
 
 //=============User defined Data Types===================//
 
@@ -105,7 +102,7 @@ enum EEPROMAlarmCode {PLWCO = 1, SLWCO, FSGalarm, HighLimit};
 
 ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
-File myFile;
+File myFile; // conisder DateTime now = rtc.now() instansiation only once in the loop??? Heap memory concerns??
 RTC_PCF8523 rtc;
 
 //=======================================================================//
@@ -508,7 +505,7 @@ void primary_LW()
       LCDwaiting();
       Serial.println(F("Primary low water.  Sending message"));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
-      sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
+      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, LWbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(PLWCO);
@@ -554,7 +551,7 @@ void secondary_LW()
       LCDwaiting();
       Serial.println(F("Secondary low water.  Sending message."));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LW2body);
-      sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LW2body);
+      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, LW2body);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LW2body);
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(SLWCO);
@@ -602,7 +599,7 @@ void Honeywell_alarm()
       Serial.println(F("sending alarm message"));
       Serial.println(F("about to enter modbus reading function..."));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, BCbody);
-      sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, BCbody);
+      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, BCbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, BCbody);
       delay(100);
       Serial.println(F("about to enter modbus reading function..."));
@@ -654,7 +651,7 @@ void HLPC()
       LCDwaiting();
       Serial.println("Sending HPLC alarm message");
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, HLPCbody);
-      sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, HLPCbody);
+      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, HLPCbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, HLPCbody);
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(HighLimit);
@@ -739,7 +736,7 @@ void timedmsg() // daily timer message to ensure Squawk is still operational
 
   if (difference5 >= dailytimer)
   {
-    sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, REPbody);
+    sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, REPbody);
     msgswitch = false;
   }
 }
@@ -777,7 +774,7 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
               Serial.print(incomingChar);
               Serial.println(F("GOOD CHECK. SMS SYSTEMS ONLINE"));
               Serial.println(F("SENDING CHECK VERIFICATION MESSAGE")) ;
-              sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, CHECKbody);
+              sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, CHECKbody);
               Serial.println("verification message sent");
               Serial1.print("AT+CMGD=0,4\r");
               delay(100);
@@ -874,149 +871,72 @@ void boot_SD() //see if the card is present and can be initialized
 
 void loadContacts()
 {
-//add an endpoint for data logging
-// contacts to recieve text messages
-static String conFrom1 = "";
-static String conTo1 = "";
-static String conTo2 = "";
-static String conTo3 = "";
-static String URLheader = "";
-bool SDbegin {true};
-
-  //------------------load FROM contact number-------------//  
-
-  // This is the number boiler alert messages will appear to be from
-  // also the number you text back to recieve info from the boiler.
-  myFile = SD.open("from1.txt");
-  if (myFile) 
-  {
-    Serial.println("pulling FROM phone number from SD");
-    // read from the file until there's nothing else in it:
-    while (myFile.available()) 
-    {
-      char c = myFile.read();  //gets one byte from serial buffer
-      conFrom1 += c;
-    }
-    myFile.close();
-  } 
-  else 
-  {
-    // if the file didn't open, print an error:
-    Serial.println("error opening from1.txt");
-  }
-  //convert the String into a character array
+  String URLheader = "";
+  String conFrom1 = "";
+  String conTo1 = "";
+  String conTo2 = "";
+  String conTo3 = "";
+  String conToTotal = "To=";
+  //---------------------------------------------//
+  //load "from" number.  This is the number alert messages will apear to be from-------------//
+  conFrom1 = fill_from_SD("from1.txt");
   conFrom1.toCharArray(contactFromArray1, 25);
-  Serial.print(F("The first phone number FROM String is "));
-  Serial.println(conFrom1);
-  Serial.print(F("The first phone number FROM char array is "));
-  Serial.println(contactFromArray1);
-
-  //------------------load first contact number-------------//
-
-#ifdef load_first_contact_number
-  myFile = SD.open("to1.txt");
-  if (myFile) 
+  Serial.print("From nums: ");
+  Serial.print(contactFromArray1);
+  conTo1 = fill_from_SD("To1.txt");
+  if (conTo1[0] > 0) 
   {
-    Serial.println("pulling phone number 1 from SD");
-    // read from the file until there's nothing else in it:
-    while (myFile.available()) 
-    {
-      char c = myFile.read();  //gets one byte from serial buffer
-      conTo1 += c;
-    }
-    myFile.close();
-  } 
-  else 
-  {
-    // if the file didn't open, print an error:
-    Serial.println("error opening to1.txt");
+    conToTotal += conTo1;
   }
-  conTo1.toCharArray(contactToArray1, 25);
-  Serial.print(F("The first phone number TO String is "));
-  Serial.println(conTo1);
-  Serial.print(F("The first phone number TO char array is "));
-  Serial.println(contactToArray1);
-#endif
-
-  //------------------load second contact number-------------//
-
-#ifdef load_second_contact_number
-  myFile = SD.open("to2.txt");
-  if (myFile) 
+  conTo2 = fill_from_SD("To2.txt");
+  if (conTo2[0] > 0) 
   {
-    Serial.println(F("pulling phone number 2 from SD"));
-    // read from the file until there's nothing else in it:
-    while (myFile.available()) 
-    {
-      char c = myFile.read();  //gets one byte from serial buffer
-      conTo2 += c;
-    }
-    myFile.close();
-  } 
-  else 
-  {
-    // if the file didn't open, print an error:
-    Serial.println(F("error opening to2.txt"));
+    conToTotal += "," + conTo2;
   }
-  conTo2.toCharArray(contactToArray2, 25);
-  Serial.print(F("The second phone number TO String is "));
-  Serial.println(conTo2);
-  Serial.print(F("The second phone number TO char array is "));
-  Serial.println(contactToArray2);
-#endif
-
-  //------------------load third contact number-------------//
-
-#ifdef load_third_contact_number
-  myFile = SD.open("to3.txt");
-  if (myFile) 
+  conTo3 = fill_from_SD("To3.txt");
+  if (conTo3[0] > 0) 
   {
-    Serial.println(F("pulling phone number 3 from SD"));
-    // read from the file until there's nothing else in it:
-    while (myFile.available()) 
-    {
-      char c = myFile.read();  //gets one byte from serial buffer
-      conTo3 += c;
-    }
-    myFile.close();
-  } 
-  else 
-  {
-    // if the file didn't open, print an error:
-    Serial.println(F("error opening to3.txt"));
+    conToTotal += "," + conTo3;
   }
-  conTo3.toCharArray(contactToArray3, 25);
-  Serial.print(F("The third phone number TO String is "));
-  Serial.println(conTo3);
-  Serial.print(F("The third phone number TO char array is "));
-  Serial.println(contactToArray3);
-#endif
-
-  //------------------load URL header-------------//
-
-  // This is where the squawkbox sends data to the Twilio endpoint
-  myFile = SD.open("URL.txt");
-  if (myFile) 
+  conToTotal += "&";    //format the "to" list of numbers for being in the URL by ending it with '&' so that next parameter can come after
+  Serial.print(F("The total contact list is: "));
+  Serial.println(conToTotal);
+  Serial.print("fourth position character: ");
+  Serial.println(conToTotal[3]);
+  if (conToTotal[3] == ',')
   {
-    Serial.println(F("loading URL header"));
-    // read from the file until there's nothing else in it:
-    while (myFile.available()) 
-    {
-      char c = myFile.read();  //gets one byte from serial buffer
-      URLheader += c;
-    }
-    myFile.close();
-  } 
-  else 
-  {
-    // if the file didn't open, print an error:
-    Serial.println(F("error opening URL.txt"));
+    conToTotal.remove(3, 1);
+    Serial.print(F("New contact list: "));
+    Serial.println(conToTotal);
   }
+  conToTotal.toCharArray(conToTotalArray, 60);
+  URLheader = fill_from_SD("URL.txt");
   URLheader.toCharArray(urlHeaderArray, 100);
-  Serial.print(F("The URL header is "));
-  Serial.println(URLheader);
-  Serial.print(F("The URL header array is  "));
+  Serial.print("URL header is: ");
   Serial.println(urlHeaderArray);
+}
+
+String fill_from_SD(String file_name)
+{
+  String temporary_string = "";
+  String info_from_SD = "";
+  myFile = SD.open(file_name);
+  if (myFile) 
+  {
+    // read from the file until there's nothing else in it:
+    while (myFile.available())
+    {
+      char c = myFile.read();  //gets one byte from serial buffer
+      info_from_SD += c;
+    }
+    myFile.close();
+    return info_from_SD;
+  }
+  else
+  {
+    // if the file didn't open, print an error:
+    Serial.println("error opening file");
+  }
 }
 
 void preTransmission() // user designated action required by the MODBUS library
@@ -1046,38 +966,38 @@ void readModbus() // getting FSG faults from the FSG
     {
       case 1:
         //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
-        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
+        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
         break;
       case 15:
         //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code15%20Unexpected%20Flame\"\r");
-        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code15%20Unexpected%20Flame\"\r");
+        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code15%20Unexpected%20Flame\"\r");
         break;
       case 17:
         //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code17%20Main%20Flame%20Failure\"\r");
-        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code17%20Main%20Flame%20Failure\"\r");
+        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code17%20Main%20Flame%20Failure\"\r");
         break;
       case 19:
         //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code19%20MainIgn%20Failure\"\r");
-        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code19%20MainIgn%20Failure\"\r");
+        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code19%20MainIgn%20Failure\"\r");
         break;
       case 28:
        // sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code28%20Pilot%20Failure\"\r");
-        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code28%20Pilot%20Failure\"\r");
+        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code28%20Pilot%20Failure\"\r");
         break;
       case 29:
        // sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code29%20Interlock\"\r");
-        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Code29%20Interlock\"\r");
+        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code29%20Interlock\"\r");
         break;
       default:
        // sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Check%20Fault%20Code\"\r");
-        sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Check%20Fault%20Code\"\r");
+        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Check%20Fault%20Code\"\r");
         break;
     }
   }
   else
   {
     //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Modbus%20Com%20Fail\"\r");
-    sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, "Body=Modbus%20Com%20Fail\"\r");
+    sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Modbus%20Com%20Fail\"\r");
   }
 }
 
@@ -1161,7 +1081,7 @@ void initiateSim()
   delay(100);
   //getResponse();
   //sendSMS(urlHeaderArray, contactFromArray1, contactToArray1, SetCombody);
-  sendSMS(urlHeaderArray, contactFromArray1, contactToArray2, SetCombody);
+  sendSMS(urlHeaderArray, contactFromArray1, conToTotalArray, SetCombody);
   //sendSMS(urlHeaderArray, contactFromArray1, contactToArray3, SetCombody);
   delay(2000);
   Serial.println(F("initiateSim() complete."));
