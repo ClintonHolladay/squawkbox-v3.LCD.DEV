@@ -508,11 +508,13 @@ void primary_LW()
       LCDwaiting();
       Serial.println(F("Primary low water.  Sending message"));
       //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
-       (urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
+      sendSMS(urlHeaderArray, contactToArray2, contactFromArray1, LWbody);
       //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(PLWCO);
       printf("EEPROM() function Primary Low Water complete.\n");
+      Data_Logger(PrimaryString);
+      printf("Data_Logger(PrimaryString)function complete.\n");
       PLWCOSent = 1;
       alarmSwitch = false;
     }
@@ -557,6 +559,8 @@ void secondary_LW()
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(SLWCO);
       printf("EEPROM() function 2nd Low Water complete.\n");
+      Data_Logger(SecondaryString);
+      printf("Data_Logger(SecondaryString)function complete.\n");
       SLWCOSent = 1;
       alarmSwitch2 = false;
     }
@@ -606,6 +610,8 @@ void Honeywell_alarm()
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(FSGalarm);
       printf("EEPROM() function FSG Alarm complete.\n");
+      Data_Logger(AlarmString);
+      printf("Data_Logger(AlarmString)function complete.\n");
       HWAlarmSent = 1;
       alarmSwitch3 = false;
     }
@@ -653,6 +659,8 @@ void HLPC()
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(HighLimit);
       printf("EEPROM() function High Limit complete.\n");
+      Data_Logger(hlpcString);
+      printf("Data_Logger(hlpcString)function complete.\n");
       hlpcSent = 1;
       alarmSwitch4 = false;
     }
@@ -823,13 +831,13 @@ void boot_SD() //see if the card is present and can be initialized
   else
   {
     printf("SD.begin() is GOOD.\n");
-    //const char* FILE {"DataLogger.txt"}; //Arduino file names can only be <= 8 characters
+    //const char* FILE {"DataLog.txt"}; //Arduino file names can only be <= 8 characters
     myFile = SD.open("DataLog.txt", FILE_WRITE);
     if (myFile) 
     {
-      if(!myFile.position())
+      if(myFile.position() == 0)
       {
-        myFile.println("Fault,Year,Month,Day,Hour,Minute,Second");
+        myFile.println("Fault, UnixTime, Year, Month, Day, Hour, Minute, Second");
         myFile.close();
         printf("SD Card initialization complete.\n");
       }
@@ -1171,6 +1179,11 @@ void LCDwaiting()
   lcd.print("MESSAGE");
   lcd.setCursor(4, 3);
   lcd.print("PLEASE WAIT");
+  if(userInput)
+  {
+    userInput = false; /*If the user is accessing the EEPROM memory faults while a new fault occurs, 
+                        this will kick them out of that menu and allow for the display of the new fault.*/
+  }
 }
 
 void EEPROM_Prefill()// EEPROM initialization function
