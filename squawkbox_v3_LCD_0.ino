@@ -1,14 +1,14 @@
 // TODO:
 // Change the Serial.print() to printf().
 // Change Strings to char[].
-// setup data logging
-// reassess how values are passed in UserInputAccessEEPROM()
+// setup data logging.
+// reassess how values are passed in UserInputAccessEEPROM().
 // Add functions for Flame sensor() / Pump amps() / Aw Na box() / any others???
-// Create function for User input Text to change personal phone number
-// Create function for User input Text to turn OFF or ON personal text messages
-// Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate
-// Display blow down reminder after 48 hours of no PLWCO 
-// send blow down text after 72 hours of no PLWCO 
+// Create function for User input Text to change personal phone number.
+// Create function for User input Text to turn OFF or ON personal text messages.
+// Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
+// Display blow down reminder after 48 hours of no PLWCO.
+// Send blow down text after 72 hours of no PLWCO.
 
 
 
@@ -20,14 +20,17 @@
 #include <RTClib.h>
 #include <LibPrintf.h>
 
-#define CW 1
-#define CCW -1
-#define PUSH_BUTTON 0
-//#define PRINTF_DISABLE_ALL
-//#define printf(x...)
+
+//#define PRINTF_DISABLE_ALL // Not working as advertised
+//#define printf(x...) // Deletes ALL prinf() functions 
 //#define load_first_contact_number
 #define load_second_contact_number
 //#define load_third_contact_number
+
+//Rotary encoder definitons
+#define CW 1
+#define CCW -1
+#define PUSH_BUTTON 0
 
 //The following const int pins are all pre-run in the PCB:
 const int low1 {5};         //to screw terminal
@@ -169,10 +172,9 @@ void setup()
   lcd.print("Module");
   printf("Starting SIMboot().\n");
   SIMboot();
-  delay(8000); // Give time for the SIM module to turn on and wake up
+  boot_SD();
   loadContacts(); //run the SD card function.
   Serial.println(F("Contacts Loaded.  Booting SIM module.  Initiating wakeup sequence..."));
-  delay(2000);
   initiateSim();
   EEPROM_Prefill();
   Serial.println(F("Setup() Function complete. Entering Main Loop() Function"));
@@ -779,6 +781,87 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
   }
 }
 
+void Data_Logger(const char& FAULT[]) 
+{
+  DateTime now = rtc.now();
+  File dataFile = SD.open("DataLogger.txt", FILE_WRITE);
+  if (dataFile) 
+  {
+    dataFile.print(FAULT);
+    dataFile.print(",");
+    dataFile.print(now.unixtime());
+    dataFile.print(",");
+    dataFile.print(now.year());  
+    dataFile.print(",");      
+    dataFile.print(now.month());  
+    dataFile.print(",");
+    dataFile.print(now.day());  
+    dataFile.print(",");
+    dataFile.print(now.hour());  
+    dataFile.print(",");
+    dataFile.print(now.minute());  
+    dataFile.print(",");
+    dataFile.print(now.second());  
+    dataFile.print(",");
+    dataFile.println();  //End of Row move to next row
+    dataFile.close();    //Close the file
+    printf("Data Log Complete.\n");
+  } 
+  else
+  {
+    printf("Data Log failed.\n");
+  }
+}
+
+void boot_SD() //see if the card is present and can be initialized
+{
+  if (!SD.begin(10)) 
+  {
+    printf("SD Card failed or not present.\n");
+    // LCD display code for SD failure***********************************************************************
+  }
+  else
+  {
+    File dataFile = SD.open("DataLogger.txt", FILE_WRITE);
+    if (dataFile) 
+    {
+      if(!dataFile.position())
+      {
+        dataFile.println("Fault,Year,Month,Day,Hour,Minute,Second");
+        dataFile.close();
+        printf("SD Prior initialization recognition complete.\n");
+      }
+      else
+      {
+        DateTime now = rtc.now();
+        dataFile.print("SystemRESET");
+        dataFile.print(",");
+        dataFile.print(now.unixtime());
+        dataFile.print(",");
+        dataFile.print(now.year());  
+        dataFile.print(",");      
+        dataFile.print(now.month());  
+        dataFile.print(",");
+        dataFile.print(now.day());  
+        dataFile.print(",");
+        dataFile.print(now.hour());  
+        dataFile.print(",");
+        dataFile.print(now.minute());  
+        dataFile.print(",");
+        dataFile.print(now.second());  
+        dataFile.print(",");
+        dataFile.println();  //End of Row move to next row
+        dataFile.close();    //Close the file
+        printf("SD SystemRESET Data Log Complete.\n");
+      }
+    }
+    else
+    {
+      printf("SD Prior initialization recognition OR SystemRESET Data Log Failed.\n");
+    }
+  }
+}
+
 void loadContacts()
 {
 //add an endpoint for data logging
@@ -788,13 +871,7 @@ static String conTo1 = "";
 static String conTo2 = "";
 static String conTo3 = "";
 static String URLheader = "";
-bool SDbegin {true};  
-  while (SDbegin)  //what?*************************************************************************
-  {
-    if (!SD.begin(10)) Serial.println(F("SD card initialization failed! Remaining in SD.begin while loop"));
-    else SDbegin = false;
-  }
-  Serial.println(F("SD card initialization done."));
+bool SDbegin {true};
 
   //------------------load FROM contact number-------------//  
 
