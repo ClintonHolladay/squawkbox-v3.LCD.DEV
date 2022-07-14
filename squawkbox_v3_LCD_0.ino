@@ -781,30 +781,30 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
   }
 }
 
-void Data_Logger(const char& FAULT[]) 
+void Data_Logger(const char FAULT[]) 
 {
   DateTime now = rtc.now();
-  File dataFile = SD.open("DataLogger.txt", FILE_WRITE);
-  if (dataFile) 
+  File myFile = SD.open("DataLog.txt", FILE_WRITE);
+  if (myFile) 
   {
-    dataFile.print(FAULT);
-    dataFile.print(",");
-    dataFile.print(now.unixtime());
-    dataFile.print(",");
-    dataFile.print(now.year());  
-    dataFile.print(",");      
-    dataFile.print(now.month());  
-    dataFile.print(",");
-    dataFile.print(now.day());  
-    dataFile.print(",");
-    dataFile.print(now.hour());  
-    dataFile.print(",");
-    dataFile.print(now.minute());  
-    dataFile.print(",");
-    dataFile.print(now.second());  
-    dataFile.print(",");
-    dataFile.println();  //End of Row move to next row
-    dataFile.close();    //Close the file
+    myFile.print(FAULT);
+    myFile.print(",");
+    myFile.print(now.unixtime());
+    myFile.print(",");
+    myFile.print(now.year());  
+    myFile.print(",");      
+    myFile.print(now.month());  
+    myFile.print(",");
+    myFile.print(now.day());  
+    myFile.print(",");
+    myFile.print(now.hour());  
+    myFile.print(",");
+    myFile.print(now.minute());  
+    myFile.print(",");
+    myFile.print(now.second());  
+    myFile.print(",");
+    myFile.println();  //End of Row move to next row
+    myFile.close();    //Close the file
     printf("Data Log Complete.\n");
   } 
   else
@@ -822,37 +822,39 @@ void boot_SD() //see if the card is present and can be initialized
   }
   else
   {
-    File dataFile = SD.open("DataLogger.txt", FILE_WRITE);
-    if (dataFile) 
+    printf("SD.begin() is GOOD.\n");
+    //const char* FILE {"DataLogger.txt"}; //Arduino file names can only be <= 8 characters
+    myFile = SD.open("DataLog.txt", FILE_WRITE);
+    if (myFile) 
     {
-      if(!dataFile.position())
+      if(!myFile.position())
       {
-        dataFile.println("Fault,Year,Month,Day,Hour,Minute,Second");
-        dataFile.close();
-        printf("SD Prior initialization recognition complete.\n");
+        myFile.println("Fault,Year,Month,Day,Hour,Minute,Second");
+        myFile.close();
+        printf("SD Card initialization complete.\n");
       }
       else
       {
         DateTime now = rtc.now();
-        dataFile.print("SystemRESET");
-        dataFile.print(",");
-        dataFile.print(now.unixtime());
-        dataFile.print(",");
-        dataFile.print(now.year());  
-        dataFile.print(",");      
-        dataFile.print(now.month());  
-        dataFile.print(",");
-        dataFile.print(now.day());  
-        dataFile.print(",");
-        dataFile.print(now.hour());  
-        dataFile.print(",");
-        dataFile.print(now.minute());  
-        dataFile.print(",");
-        dataFile.print(now.second());  
-        dataFile.print(",");
-        dataFile.println();  //End of Row move to next row
-        dataFile.close();    //Close the file
-        printf("SD SystemRESET Data Log Complete.\n");
+        myFile.print("SystemRESET");
+        myFile.print(",");
+        myFile.print(now.unixtime());
+        myFile.print(",");
+        myFile.print(now.year());  
+        myFile.print(",");      
+        myFile.print(now.month());  
+        myFile.print(",");
+        myFile.print(now.day());  
+        myFile.print(",");
+        myFile.print(now.hour());  
+        myFile.print(",");
+        myFile.print(now.minute());  
+        myFile.print(",");
+        myFile.print(now.second());  
+        myFile.print(",");
+        myFile.println();  //End of Row move to next row
+        myFile.close();    //Close the file
+        printf("SD Prior initialization recognition & SystemRESET Data Log Complete.\n");
       }
     }
     else
