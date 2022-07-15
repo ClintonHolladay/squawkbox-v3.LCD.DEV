@@ -8,8 +8,7 @@
 // Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
 // Display blow down reminder after 48 hours of no PLWCO.
 // Send blow down text after 72 hours of no PLWCO.
-
-
+// make an RTC function to clean up the setup()
 
 #include <SD.h>
 #include <ModbusMaster.h>
@@ -19,12 +18,8 @@
 #include <RTClib.h>
 #include <LibPrintf.h>
 
-
 //#define PRINTF_DISABLE_ALL // Not working as advertised
 //#define printf(x...) // Deletes ALL prinf() functions 
-//#define load_first_contact_number
-#define load_second_contact_number
-//#define load_third_contact_number
 
 //Rotary encoder definitons
 #define CW 1
@@ -40,9 +35,12 @@ const int hplcOUT {15};     //to screw terminal
 const int MAX485_DE {3};    //to modbus module
 const int MAX485_RE_NEG {2};//to modbus module
 const int SIMpin {A3};      // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
+//SerialPort #1 (Serial1) Default is pin19 RX1 and pin18 TX1 on the Mega. These are how the SIM7000A module communicates with the mega.
+
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 const int PLWCOoutletPin {17};
 const int SLWCOoutletPin {16};
+
 const int pushButton {42};   //=====================//
 const int encoderPinA {44};  // Rotary encoder pins //
 const int encoderPinB {46};  //=====================//
@@ -102,7 +100,7 @@ enum EEPROMAlarmCode {PLWCO = 1, SLWCO, FSGalarm, HighLimit};
 
 ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
-File myFile; // conisder DateTime now = rtc.now() instansiation only once in the loop??? Heap memory concerns??
+File myFile; // consider DateTime now = rtc.now() instansiation only once in the loop??? Heap memory concerns??
 RTC_PCF8523 rtc;
 
 //=======================================================================//
@@ -504,9 +502,7 @@ void primary_LW()
     {
       LCDwaiting();
       Serial.println(F("Primary low water.  Sending message"));
-      //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LWbody);
       sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, LWbody);
-      //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LWbody);
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(PLWCO);
       printf("EEPROM() function Primary Low Water complete.\n");
@@ -550,9 +546,7 @@ void secondary_LW()
     {
       LCDwaiting();
       Serial.println(F("Secondary low water.  Sending message."));
-      //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, LW2body);
       sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, LW2body);
-      //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, LW2body);
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(SLWCO);
       printf("EEPROM() function 2nd Low Water complete.\n");
@@ -575,6 +569,7 @@ void secondary_LW()
     }
   }
 }
+
 void Honeywell_alarm()
 {
   static bool alarmSwitch3 {false};
@@ -598,9 +593,7 @@ void Honeywell_alarm()
       LCDwaiting();
       Serial.println(F("sending alarm message"));
       Serial.println(F("about to enter modbus reading function..."));
-      //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, BCbody);
       sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, BCbody);
-      //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, BCbody);
       delay(100);
       Serial.println(F("about to enter modbus reading function..."));
       readModbus();
@@ -650,9 +643,7 @@ void HLPC()
     {
       LCDwaiting();
       Serial.println("Sending HPLC alarm message");
-      //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, HLPCbody);
       sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, HLPCbody);
-      //sendSMS(urlHeaderArray, contactToArray3, contactFromArray1, HLPCbody);
       Serial.println(F("message sent or simulated"));
       EEPROMalarmInput(HighLimit);
       printf("EEPROM() function High Limit complete.\n");
@@ -676,13 +667,13 @@ void HLPC()
   }
 }
 
-void sendSMS(char pt1[], char pt2[], char pt3[], char pt4[])//SIM7000A module
+void sendSMS(char URL[], char to[], char from[], char body[])//SIM7000A module
 {
   char finalURL[250] = "";
-  strcpy(finalURL, pt1);
-  strcat(finalURL, pt2);
-  strcat(finalURL, pt3);
-  strcat(finalURL, pt4);
+  strcpy(finalURL, URL);
+  strcat(finalURL, to);
+  strcat(finalURL, from);
+  strcat(finalURL, body);
   Serial.println(finalURL);
   delay(20);
   Serial1.print("AT+HTTPTERM\r");
@@ -822,7 +813,7 @@ void boot_SD() //see if the card is present and can be initialized
 {
   if (!SD.begin(10)) 
   {
-    printf("SD Card failed or not present.\n");
+    printf("***ERROR SD Card failed or not present.***\n");
     // LCD display code for SD failure***********************************************************************
   }
   else
@@ -864,7 +855,7 @@ void boot_SD() //see if the card is present and can be initialized
     }
     else
     {
-      printf("SD Prior initialization recognition OR SystemRESET Data Log Failed.\n");
+      printf("***ERROR SD Prior initialization recognition OR SystemRESET Data Log Failed.***\n");
     }
   }
 }
@@ -877,8 +868,7 @@ void loadContacts()
   String conTo2 = "";
   String conTo3 = "";
   String conToTotal = "To=";
-  //---------------------------------------------//
-  //load "from" number.  This is the number alert messages will apear to be from-------------//
+  //load "from" number.  This is the number alert messages will apear to be from.
   conFrom1 = fill_from_SD("from1.txt");
   conFrom1.toCharArray(contactFromArray1, 25);
   Serial.print("From nums: ");
@@ -935,7 +925,7 @@ String fill_from_SD(String file_name)
   else
   {
     // if the file didn't open, print an error:
-    Serial.println("error opening file");
+    Serial.println("***ERROR opening SD contactTo file.***");
   }
 }
 
@@ -944,6 +934,7 @@ void preTransmission() // user designated action required by the MODBUS library
   digitalWrite(MAX485_RE_NEG, 1);
   digitalWrite(MAX485_DE, 1);
 }
+
 void postTransmission() // user designated action required by the MODBUS library
 {
   digitalWrite(MAX485_RE_NEG, 0);
@@ -964,39 +955,34 @@ void readModbus() // getting FSG faults from the FSG
 
     switch (alarmRegister)
     {
-      case 1:
-        //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
-        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
+      case 1: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
         break;
-      case 15:
-        //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code15%20Unexpected%20Flame\"\r");
-        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code15%20Unexpected%20Flame\"\r");
+      case 10: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code10%20PreIgnition%20Interlock%20Standby\"\r");
         break;
-      case 17:
-        //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code17%20Main%20Flame%20Failure\"\r");
-        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code17%20Main%20Flame%20Failure\"\r");
+      case 14: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code14%20High%20Fire%20Interlock%20Switch\"\r");
         break;
-      case 19:
-        //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code19%20MainIgn%20Failure\"\r");
-        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code19%20MainIgn%20Failure\"\r");
+      case 15: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code15%20Unexpected%20Flame\"\r");
         break;
-      case 28:
-       // sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code28%20Pilot%20Failure\"\r");
-        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code28%20Pilot%20Failure\"\r");
+      case 17: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code17%20Main%20Flame%20Failure%20RUN\"\r");
         break;
-      case 29:
-       // sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Code29%20Interlock\"\r");
-        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Code29%20Interlock\"\r");
+      case 19: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code19%20Main%20Flame%20Ignition%20Failure\"\r");
         break;
-      default:
-       // sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Check%20Fault%20Code\"\r");
-        sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Check%20Fault%20Code\"\r");
+      case 20: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code20%20Low%20Fire%20Interlock%20Switch\"\r");
+        break;
+      case 28: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code28%20Pilot%20Flame%20Failure\"\r");
+        break;
+      case 29: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code29%20Lockout%20Interlock\"\r");
+        break;
+      case 33: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code33%20PreIgnition%20Interlock\"\r");
+        break;
+      case 47: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code47%20Jumpers%20Changed\"\r");
+        break;
+      default: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Check%20Fault%20Code\"\r");
         break;
     }
   }
   else
   {
-    //sendSMS(urlHeaderArray, contactToArray1, contactFromArray1, "Body=Modbus%20Com%20Fail\"\r");
     sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Modbus%20Com%20Fail\"\r");
   }
 }
@@ -1080,9 +1066,7 @@ void initiateSim()
   Serial1.print("AT+CNMI=2,2,0,0,0\r"); //
   delay(100);
   //getResponse();
-  //sendSMS(urlHeaderArray, contactFromArray1, contactToArray1, SetCombody);
   sendSMS(urlHeaderArray, contactFromArray1, conToTotalArray, SetCombody);
-  //sendSMS(urlHeaderArray, contactFromArray1, contactToArray3, SetCombody);
   delay(2000);
   Serial.println(F("initiateSim() complete."));
 }
@@ -1134,5 +1118,21 @@ void EEPROM_Prefill()// EEPROM initialization function
   //    printf("Date: %i/%i/%i\n",readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
   //    printf("Time: %i:%i:%i\n",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
   //  }
+  }
+}
+
+float get_flame_signal()
+{
+  uint16_t result = node.readHoldingRegisters (0x000A , 1);//As per the S7800A1146 Display manual 
+  if (result == node.ku8MBSuccess)
+  {
+    float flameSignal = node.getResponseBuffer(result);
+    flameSignal = map(flameSignal,0,255,0,25.5);//As per the S7800A1146 Display manual 
+    return flameSignal;
+  }
+  else
+  {
+    printf("***ERROR Flame signal retrival failed.***\n");
+    return -1.0;
   }
 }
