@@ -1,5 +1,15 @@
+static char conToTotalArray[60];
 
-
+void setup()
+{
+  //code
+}
+void loop()
+{
+  //code
+}
+  
+  
 void loadContacts()
 {
 
