@@ -1,0 +1,4 @@
+/* This URL header allows for the simultaneous  sending of messages to multiple recipients. 
+   Thus allowing the squawk code to only make a single call to sendSMS() in the alarm functions.*/
+
+http://relay-post-8447.twil.io/recipient_loop
