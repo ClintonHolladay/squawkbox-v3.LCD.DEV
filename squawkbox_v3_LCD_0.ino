@@ -2,13 +2,14 @@
 // Change the Serial.print() to printf().
 // Change Strings to char[].
 // reassess how values are passed in UserInputAccessEEPROM().
-// Add functions for Flame sensor() / Pump amps() / Aw Na box() / any others???
+// Add functions for Pump amps() / Aw Na box() / any others???
 // Create function for User input Text to change personal phone number.
 // Create function for User input Text to turn OFF or ON personal text messages.
 // Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
 // Display blow down reminder after 48 hours of no PLWCO.
 // Send blow down text after 72 hours of no PLWCO.
 // make an RTC function to clean up the setup()
+// Add function to send a Flame signal text message
 
 #include <SD.h>
 #include <ModbusMaster.h>
@@ -132,7 +133,7 @@ void setup()
       
    }
   rtc.start();
-  
+
   lcd.init(); // LCD initialization
   lcd.backlight();
   lcd.begin(20, 4); // initialize LCD screen (columns, rows)
@@ -280,7 +281,7 @@ void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)
   lcd.print("SAVED ALARM: ");
   lcd.print(SavedAlarmCounter);
   lcd.setCursor(0, 1);
-  switch(readingSTRUCT.alarm)
+  switch(readingSTRUCT.alarm)//Need to add more options here for the FSG alarms
   {
     case 1: lcd.print(PrimaryString);break;
     case 2: lcd.print(SecondaryString);break;
@@ -351,7 +352,7 @@ void UserInputAccessEEPROM()
   } 
 }
 
-void print_alarms()
+void print_alarms()//rethink how this function is layed out and structured...
 {   
   static bool ClearScreenSwitch {false};         // to be put into the complete LCD function
   static unsigned long ClearScreendifference {}; // to be put into the complete LCD function
@@ -777,7 +778,7 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
   }
 }
 
-void Data_Logger(const char FAULT[]) 
+void Data_Logger(const char FAULT[])//add in cycle count and run time hours?
 {
   DateTime now = rtc.now();
   File myFile = SD.open("DataLog.txt", FILE_WRITE);
@@ -797,8 +798,7 @@ void Data_Logger(const char FAULT[])
     myFile.print(",");
     myFile.print(now.minute());  
     myFile.print(",");
-    myFile.print(now.second());  
-    myFile.print(",");
+    myFile.print(now.second());
     myFile.println();  //End of Row move to next row
     myFile.close();    //Close the file
     printf("Data Log Complete.\n");
@@ -846,8 +846,7 @@ void boot_SD() //see if the card is present and can be initialized
         myFile.print(",");
         myFile.print(now.minute());  
         myFile.print(",");
-        myFile.print(now.second());  
-        myFile.print(",");
+        myFile.print(now.second());
         myFile.println();  //End of Row move to next row
         myFile.close();    //Close the file
         printf("SD Prior initialization recognition & SystemRESET Data Log Complete.\n");
