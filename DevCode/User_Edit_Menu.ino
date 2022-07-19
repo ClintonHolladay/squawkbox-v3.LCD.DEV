@@ -1,14 +1,18 @@
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 
-bool userInput{};
-bool userInput2{};
+#define ACTIVE 1
+#define INACTIVE 0
+
+static bool userInput{};
+static bool userInput2{};
+
+static char contact1[10] {"6158122833"};
+static bool contact1Status {ACTIVE}; // will need to be stored in the EEPROM for when a loss of power happens 
 
 //LCD Menu Logic
-const int numOfScreens = 8;
-int currentScreen = 0;
-const char* MainScreen[numOfScreens] = {"Fault History","Contact 1","Contact 2","Contact 3","Contact 4","Contact 5","Contact 6","EXIT"};
-int parameters[numOfScreens];
+const char* MainScreen[8] = {"Fault History","Contact 1","Contact 2","Contact 3","Contact 4","Contact 5","Contact 6","EXIT"};
+const char* contactScreen[4] = {"CURRENT#","STATUS: ","EDIT","EXIT"};
 
 const int pushButton {42};   //=====================//
 const int encoderPinA {44};  // Rotary encoder pins //
@@ -51,7 +55,7 @@ void loop()
     User_Input_Access_Menu();
 }
 
-void User_Input_Print_Screen(const char* SCREEN[], int NumofLines, int CURSOR) 
+void User_Input_Main_Screen(const char* SCREEN[], int NumofLines, int CURSOR) 
 {
   if(CURSOR < 4)
   {
@@ -78,6 +82,34 @@ void User_Input_Print_Screen(const char* SCREEN[], int NumofLines, int CURSOR)
     }
   }
 }
+
+void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[10], bool STATUS) 
+{
+    lcd.clear();
+    lcd.setCursor(0,CURSOR);
+    lcd.print(">");
+    for(int i = 0; i < 4; i++)
+    {
+      lcd.setCursor(2,i);
+      lcd.print(SCREEN[i]);
+      if(i == 0)
+      {
+        lcd.print(CONTACT);
+      }
+      if(i == 1)
+      {
+        if(STATUS)
+        {
+          lcd.print("ACTIVE");
+        }
+        else
+        {
+          lcd.print("INACTIVE");
+        }
+      }
+    }
+}
+
 
 void User_Input_Access_Menu()
 {
@@ -111,7 +143,7 @@ void User_Input_Access_Menu()
     {
       Serial.println("User Input Recieved ON");
       Cursor = 0;
-      User_Input_Print_Screen(MainScreen,4,Cursor);
+      User_Input_Main_Screen(MainScreen,4,Cursor);
     }
     else Serial.println ("User Input Recieved OFF");
   }
@@ -120,7 +152,7 @@ void User_Input_Access_Menu()
    *  encoder input from the user in order to traverse and LCD display the EEPROM fault data.*/
   if(userInput && !userInput2)
   {
-    n = digitalRead(encoderPinA);
+    n = digitalRead(encoderPinA); // make into a funciton with the number of lines as a parameter
     if ((encoderPinALast == LOW) && (n == HIGH)) 
     {
       if (digitalRead(encoderPinB) == LOW) 
@@ -131,7 +163,7 @@ void User_Input_Access_Menu()
         {
           Cursor = 7;
         }
-        User_Input_Print_Screen(MainScreen,4,Cursor);
+        User_Input_Main_Screen(MainScreen,4,Cursor);
       } 
       else 
       {
@@ -141,7 +173,7 @@ void User_Input_Access_Menu()
         {
           Cursor = 0;
         }
-        User_Input_Print_Screen(MainScreen,4,Cursor);
+        User_Input_Main_Screen(MainScreen,4,Cursor);
       }
     }
     encoderPinALast = n;
@@ -170,10 +202,52 @@ void User_Input_Access_Menu()
     LCDTimerSwitch2 = false;
     if(userInput2 && Cursor == 0)
     {
-      Serial.println("User Input2 ON");
       lcd.clear();
       lcd.setCursor(2,0);
       lcd.print("SUB MENU");// put EEPROM FAULTS here
+    }
+    else if(userInput2 && Cursor == 0)
+    {
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print(contact1);
+      User_Input_Main_Screen(MainScreen,4,Cursor);
+    }
+    else if(userInput2 && Cursor == 1)
+    {
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print("SUB MENU 1");
+    }
+    else if(userInput2 && Cursor == 2)
+    {
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print("SUB MENU 2");
+    }
+    else if(userInput2 && Cursor == 3)
+    {
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print("SUB MENU 3");
+    }
+    else if(userInput2 && Cursor == 4)
+    {
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print("SUB MENU 4");
+    }
+    else if(userInput2 && Cursor == 5)
+    {
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print("SUB MENU 5");
+    }
+    else if(userInput2 && Cursor == 6)
+    {
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print("SUB MENU 6");
     }
     else if(userInput2 && Cursor == 7)
     {
@@ -204,8 +278,34 @@ void User_Input_Access_Menu()
     {
       userInput2 = !userInput2;
       LCDTimerSwitch3 = false;
-      User_Input_Print_Screen(MainScreen,4,Cursor);
+      User_Input_Main_Screen(MainScreen,4,Cursor);
     }
+    
+    n = digitalRead(encoderPinA);
+    if ((encoderPinALast == LOW) && (n == HIGH)) 
+    {
+      if (digitalRead(encoderPinB) == LOW) 
+      {
+        //Counter Clockwise turn
+        Cursor--;
+        if(Cursor < 0)
+        {
+          Cursor = 7;
+        }
+        User_Input_Main_Screen(MainScreen,4,Cursor);
+      } 
+      else 
+      {
+        //Clockwise turn
+        Cursor++;
+        if(Cursor > 7)
+        {
+          Cursor = 0;
+        }
+        User_Input_Main_Screen(MainScreen,4,Cursor);
+      }
+    }
+    encoderPinALast = n;
   }
 
 }
