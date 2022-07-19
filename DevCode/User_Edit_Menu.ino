@@ -7,7 +7,7 @@ LiquidCrystal_I2C lcd(0x3F, 20, 4);
 static bool userInput{};
 static bool userInput2{};
 
-static char contact1[10] {"6158122833"};
+const char* contact1 {"6158122833"};
 static bool contact1Status {ACTIVE}; // will need to be stored in the EEPROM for when a loss of power happens 
 
 //LCD Menu Logic
@@ -61,8 +61,9 @@ void User_Input_Main_Screen(const char* SCREEN[], int NumofLines, int CURSOR)
   {
     lcd.clear();
     lcd.setCursor(0,CURSOR);
+    lcd.print("-");
+    lcd.setCursor(1,CURSOR);
     lcd.print(">");
-    lcd.setCursor(2,0);
     for(int i = 0; i < NumofLines; i++)
     {
       lcd.setCursor(2,i);
@@ -72,9 +73,10 @@ void User_Input_Main_Screen(const char* SCREEN[], int NumofLines, int CURSOR)
   else
   {
     lcd.clear();
-    lcd.setCursor(0,(CURSOR - 4));
+    lcd.setCursor(0,CURSOR - 4);
+    lcd.print("-");
+    lcd.setCursor(1,CURSOR - 4);
     lcd.print(">");
-    lcd.setCursor(2,0);
     for(int i = 0; i < 4; i++)
     {
       lcd.setCursor(2,i);
@@ -83,33 +85,31 @@ void User_Input_Main_Screen(const char* SCREEN[], int NumofLines, int CURSOR)
   }
 }
 
-void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[10], bool STATUS) 
+void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, const char* CONTACT, bool STATUS) 
 {
     lcd.clear();
     lcd.setCursor(0,CURSOR);
+    lcd.print("-");
+    lcd.setCursor(1,CURSOR);
     lcd.print(">");
-    for(int i = 0; i < 4; i++)
+    lcd.setCursor(2,0);
+    lcd.print(SCREEN[0]);
+    lcd.print(CONTACT);
+    lcd.setCursor(2,1);
+    lcd.print(SCREEN[1]);
+    if(STATUS)
     {
-      lcd.setCursor(2,i);
-      lcd.print(SCREEN[i]);
-      if(i == 0)
-      {
-        lcd.print(CONTACT);
-      }
-      if(i == 1)
-      {
-        if(STATUS)
-        {
-          lcd.print("ACTIVE");
-        }
-        else
-        {
-          lcd.print("INACTIVE");
-        }
-      }
+      lcd.print("ACTIVE");
     }
+    else
+    {
+      lcd.print("INACTIVE");
+    }
+    lcd.setCursor(2,2);
+    lcd.print(SCREEN[2]);
+    lcd.setCursor(2,3);
+    lcd.print(SCREEN[3]);
 }
-
 
 void User_Input_Access_Menu()
 {
@@ -206,48 +206,44 @@ void User_Input_Access_Menu()
       lcd.setCursor(2,0);
       lcd.print("SUB MENU");// put EEPROM FAULTS here
     }
-    else if(userInput2 && Cursor == 0)
-    {
-      lcd.clear();
-      lcd.setCursor(2,0);
-      lcd.print(contact1);
-      User_Input_Main_Screen(MainScreen,4,Cursor);
-    }
     else if(userInput2 && Cursor == 1)
     {
-      lcd.clear();
-      lcd.setCursor(2,0);
-      lcd.print("SUB MENU 1");
+      User_Input_Contact_Screen(contactScreen, 0, contact1, contact1Status);
     }
     else if(userInput2 && Cursor == 2)
     {
       lcd.clear();
       lcd.setCursor(2,0);
       lcd.print("SUB MENU 2");
+      //User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[10], bool STATUS);
     }
     else if(userInput2 && Cursor == 3)
     {
       lcd.clear();
       lcd.setCursor(2,0);
       lcd.print("SUB MENU 3");
+      //User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[10], bool STATUS);
     }
     else if(userInput2 && Cursor == 4)
     {
       lcd.clear();
       lcd.setCursor(2,0);
       lcd.print("SUB MENU 4");
+      //User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[10], bool STATUS);
     }
     else if(userInput2 && Cursor == 5)
     {
       lcd.clear();
       lcd.setCursor(2,0);
       lcd.print("SUB MENU 5");
+      //User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[10], bool STATUS);
     }
     else if(userInput2 && Cursor == 6)
     {
       lcd.clear();
       lcd.setCursor(2,0);
       lcd.print("SUB MENU 6");
+      //User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[10], bool STATUS);
     }
     else if(userInput2 && Cursor == 7)
     {
@@ -256,18 +252,17 @@ void User_Input_Access_Menu()
       LCDTimerSwitch2 = false;
     }
   }
-
- //==============================================================================================//
- //==================================EXIT MENU FUNCTION==========================================//
- //=====================================FOR EEPROM===============================================//
   
   if(userInput && userInput2)
   {
+ //==============================================================================================//
+ //==================================EXIT MENU FUNCTION==========================================//
+ //=====================================FOR EEPROM===============================================//
     static unsigned long LCDdebounce3{};
     static int debounceDelay3{350};
     static bool LCDTimerSwitch3 {false};
     
-    if(digitalRead(pushButton) == LOW && LCDTimerSwitch3 == false)
+    if(digitalRead(pushButton) == LOW && LCDTimerSwitch3 == false)//make this only for the EEPROM fault history or multi functional
     {
       LCDdebounce3 = millis();
       LCDTimerSwitch3 = true;
@@ -290,19 +285,21 @@ void User_Input_Access_Menu()
         Cursor--;
         if(Cursor < 0)
         {
-          Cursor = 7;
+          Cursor = 0;
+          return;//prevents LCD flicker
         }
-        User_Input_Main_Screen(MainScreen,4,Cursor);
+        User_Input_Contact_Screen(contactScreen, Cursor, contact1, contact1Status);
       } 
       else 
       {
         //Clockwise turn
         Cursor++;
-        if(Cursor > 7)
+        if(Cursor > 3)
         {
-          Cursor = 0;
+          Cursor = 3;
+          return;//prevents LCD flicker
         }
-        User_Input_Main_Screen(MainScreen,4,Cursor);
+        User_Input_Contact_Screen(contactScreen, Cursor, contact1, contact1Status);
       }
     }
     encoderPinALast = n;
