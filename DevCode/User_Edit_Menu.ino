@@ -55,7 +55,7 @@ void loop()
     User_Input_Access_Menu();
 }
 
-void User_Input_Main_Screen(const char* SCREEN[], int NumofLines, int CURSOR) 
+void User_Input_Main_Screen(int CURSOR) 
 {
   if(CURSOR < 4)
   {
@@ -64,10 +64,10 @@ void User_Input_Main_Screen(const char* SCREEN[], int NumofLines, int CURSOR)
     lcd.print("-");
     lcd.setCursor(1,CURSOR);
     lcd.print(">");
-    for(int i = 0; i < NumofLines; i++)
+    for(int i = 0; i < 4; i++)
     {
       lcd.setCursor(2,i);
-      lcd.print(SCREEN[i]);
+      lcd.print(MainScreen[i]);
     }
   }
   else
@@ -80,7 +80,7 @@ void User_Input_Main_Screen(const char* SCREEN[], int NumofLines, int CURSOR)
     for(int i = 0; i < 4; i++)
     {
       lcd.setCursor(2,i);
-      lcd.print(SCREEN[i + 4]);
+      lcd.print(MainScreen[i + 4]);
     }
   }
 }
@@ -143,7 +143,7 @@ void User_Input_Access_Menu()
     {
       Serial.println("User Input Recieved ON");
       Cursor = 0;
-      User_Input_Main_Screen(MainScreen,4,Cursor);
+      User_Input_Main_Screen(Cursor);
     }
     else Serial.println ("User Input Recieved OFF");
   }
@@ -163,7 +163,46 @@ void User_Input_Access_Menu()
         {
           Cursor = 7;
         }
-        User_Input_Main_Screen(MainScreen,4,Cursor);
+        if(Cursor < 4)
+        {
+          if(Cursor == 3)
+          {
+            lcd.clear();
+            for(int i = 0; i < 4; i++)
+            {
+              lcd.setCursor(2,i);
+              lcd.print(MainScreen[i]);
+            }
+          }
+          lcd.setCursor(0,Cursor + 1);
+          lcd.print(" ");
+          lcd.setCursor(1,Cursor + 1);
+          lcd.print(" ");
+          lcd.setCursor(0,Cursor);
+          lcd.print("-");
+          lcd.setCursor(1,Cursor);
+          lcd.print(">");
+        }
+        else
+        {
+          if(Cursor == 7)
+          {
+            lcd.clear();
+            for(int i = 0; i < 4; i++)
+            {
+              lcd.setCursor(2,i);
+              lcd.print(MainScreen[i + 4]);
+            }
+          }
+          lcd.setCursor(0,Cursor - 3);
+          lcd.print(" ");
+          lcd.setCursor(1,Cursor - 3);
+          lcd.print(" ");
+          lcd.setCursor(0,Cursor - 4);
+          lcd.print("-");
+          lcd.setCursor(1,Cursor - 4);
+          lcd.print(">");
+        }
       } 
       else 
       {
@@ -173,11 +212,50 @@ void User_Input_Access_Menu()
         {
           Cursor = 0;
         }
-        User_Input_Main_Screen(MainScreen,4,Cursor);
+        if(Cursor < 4)
+        {
+          if(Cursor == 0)
+          {
+            lcd.clear();
+            for(int i = 0; i < 4; i++)
+            {
+              lcd.setCursor(2,i);
+              lcd.print(MainScreen[i]);
+            }
+          }
+          lcd.setCursor(0,Cursor - 1);
+          lcd.print(" ");
+          lcd.setCursor(1,Cursor - 1);
+          lcd.print(" ");
+          lcd.setCursor(0,Cursor);
+          lcd.print("-");
+          lcd.setCursor(1,Cursor);
+          lcd.print(">");
+        }
+        else
+        {
+          if(Cursor == 4)
+          {
+            lcd.clear();
+            for(int i = 0; i < 4; i++)
+            {
+              lcd.setCursor(2,i);
+              lcd.print(MainScreen[i + 4]);
+            }
+          }
+          lcd.setCursor(0,Cursor - 5);
+          lcd.print(" ");
+          lcd.setCursor(1,Cursor - 5);
+          lcd.print(" ");
+          lcd.setCursor(0,Cursor - 4);
+          lcd.print("-");
+          lcd.setCursor(1,Cursor - 4);
+          lcd.print(">");
+        }
       }
+     }
     }
-    encoderPinALast = n;
-  } 
+    encoderPinALast = n; 
   
  //==============================================================================================//
  //==============================================================================================//
@@ -208,7 +286,7 @@ void User_Input_Access_Menu()
     }
     else if(userInput2 && Cursor == 1)
     {
-      User_Input_Contact_Screen(contactScreen, 0, contact1, contact1Status);
+      User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status);
     }
     else if(userInput2 && Cursor == 2)
     {
@@ -273,7 +351,7 @@ void User_Input_Access_Menu()
     {
       userInput2 = !userInput2;
       LCDTimerSwitch3 = false;
-      User_Input_Main_Screen(MainScreen,4,Cursor);
+      User_Input_Main_Screen(Cursor);
     }
     
     n = digitalRead(encoderPinA);
@@ -283,12 +361,19 @@ void User_Input_Access_Menu()
       {
         //Counter Clockwise turn
         Cursor--;
-        if(Cursor < 0)
+        if(Cursor < 1)
         {
-          Cursor = 0;
+          Cursor = 1;
           return;//prevents LCD flicker
         }
-        User_Input_Contact_Screen(contactScreen, Cursor, contact1, contact1Status);
+        lcd.setCursor(0,Cursor + 1);
+        lcd.print(" ");
+        lcd.setCursor(1,Cursor + 1);
+        lcd.print(" ");
+        lcd.setCursor(0,Cursor);
+        lcd.print("-");
+        lcd.setCursor(1,Cursor);
+        lcd.print(">");
       } 
       else 
       {
@@ -299,7 +384,14 @@ void User_Input_Access_Menu()
           Cursor = 3;
           return;//prevents LCD flicker
         }
-        User_Input_Contact_Screen(contactScreen, Cursor, contact1, contact1Status);
+        lcd.setCursor(0,Cursor - 1);
+        lcd.print(" ");
+        lcd.setCursor(1,Cursor - 1);
+        lcd.print(" ");
+        lcd.setCursor(0,Cursor);
+        lcd.print("-");
+        lcd.setCursor(1,Cursor);
+        lcd.print(">");
       }
     }
     encoderPinALast = n;
