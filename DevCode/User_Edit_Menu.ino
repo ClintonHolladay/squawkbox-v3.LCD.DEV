@@ -1,12 +1,21 @@
 #include <LiquidCrystal_I2C.h>
+#include <EEPROM.h>
+#include <RTClib.h>
+#include <LibPrintf.h>
+
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 
 #define ACTIVE 1
 #define INACTIVE 0
+//Rotary encoder definitons
+#define CW 1
+#define CCW -1
+#define PUSH_BUTTON 0
 
 static bool userInput{};
 static bool userInput2{};
 static bool userInput3{};
+static bool userInput4{};
 static bool faultHistory{};
 
 const char* contact1 {"6158122833"};
@@ -20,13 +29,73 @@ const int pushButton {42};   //=====================//
 const int encoderPinA {44};  // Rotary encoder pins //
 const int encoderPinB {46};  //=====================//
 
+const char PrimaryString[] {"Primary Low Water"};     // ====================================//
+const char SecondaryString[] {"Secondary Low Water"}; // alarm text printed to the LCD screen//
+const char hlpcString[] {"High Limit"};               // alarm text printed to the LCD screen//
+const char AlarmString[] {"FSG Alarm"};               // ====================================//
+const char DefaultString[] {"Open Fault Memory"};     // ====================================//
+
+//=============User defined Data Types===================//
+
+struct alarmVariable
+{
+   int alarm;
+   int year;
+   byte month;
+   byte day;
+   byte hour;
+   byte minute;
+   byte second; 
+};
+
+//EEPROM variables
+const int numberOfSavedFaults {400};
+const int eepromAlarmDataSize = sizeof(alarmVariable); 
+static int EEPROMinputCounter{};
+const uint8_t EEPROMInitializationKey {69};
+const int EEPROMInitializationAddress {4020};
+const int EEPROMinputCounterAddress {4000};
+const int EEPROMLastFaultAddress {3600};
+enum EEPROMAlarmCode 
+{
+  PLWCO = 1, 
+  SLWCO, 
+  FSGalarm, 
+  HighLimit
+};
+
+RTC_PCF8523 rtc;
+
 void setup() 
 {
   Serial.begin(9600);
+
+  printf("This is squawkbox V3.LCD.0 sketch.\n");
+  if (! rtc.begin()) 
+   {
+     Serial.println("Couldn't find RTC");
+     Serial.flush();
+     abort();
+   }
+  if (! rtc.initialized() || rtc.lostPower()) 
+   {
+     Serial.println("RTC is NOT initialized, let's set the time!");
+     // When time needs to be set on a new device, or after a power loss, the
+     // following line sets the RTC to the date & time this sketch was compiled
+                 // Note: allow 2 seconds after inserting battery or applying external power
+                 // without battery before calling adjust(). This gives the PCF8523's
+                 // crystal oscillator time to stabilize. If you call adjust() very quickly
+                 // after the RTC is powered, lostPower() may still return true.
+     delay(3000);
+     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+      
+   }
+  rtc.start();
+  
   pinMode (encoderPinA, INPUT);
   pinMode (encoderPinB, INPUT);
   pinMode (pushButton, INPUT_PULLUP);
-
+  EEPROM_Prefill();
   lcd.init(); // LCD initialization
   lcd.backlight();
   lcd.begin(20, 4); // initialize LCD screen (columns, rows)
@@ -268,10 +337,8 @@ void User_Input_Access_Menu()
     LCDTimerSwitch2 = false;
     if(userInput2 && Cursor == 0)
     {
-      lcd.clear();
-      lcd.setCursor(2,0);
       faultHistory = true;
-      lcd.print("SUB MENU");// put EEPROM FAULTS here
+      EEPROMalarmPrint(Cursor, 0);
     }
     else if(userInput2 && Cursor == 1)
     {
@@ -331,50 +398,24 @@ void User_Input_Access_Menu()
       if (digitalRead(encoderPinB) == LOW) 
       {
         //Counter Clockwise turn
-        Cursor--;
-        if(Cursor < 1)
-        {
-          Cursor = 1;
-          return;//prevents LCD flicker
-        }
-        lcd.setCursor(0,Cursor + 1);
-        lcd.print(" ");
-        lcd.setCursor(1,Cursor + 1);
-        lcd.print(" ");
-        lcd.setCursor(0,Cursor);
-        lcd.print("-");
-        lcd.setCursor(1,Cursor);
-        lcd.print(">");
+        EEPROMalarmPrint(Cursor, -1);
       } 
-      else 
+      else
       {
         //Clockwise turn
-        Cursor++;
-        if(Cursor > 3)
-        {
-          Cursor = 3;
-          return;//prevents LCD flicker
-        }
-        lcd.setCursor(0,Cursor - 1);
-        lcd.print(" ");
-        lcd.setCursor(1,Cursor - 1);
-        lcd.print(" ");
-        lcd.setCursor(0,Cursor);
-        lcd.print("-");
-        lcd.setCursor(1,Cursor);
-        lcd.print(">");
+        EEPROMalarmPrint(Cursor, 1);
       }
     }
     encoderPinALast = n;
 
-  if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false && userInput && userInput2 && !userInput3 && faultHistory)
+  if(digitalRead(pushButton) == LOW) //(&& LCDTimerSwitch2 == false) took this out to speed up the pushbutton recognition
   {
     LCDdebounce2 = millis();
     LCDTimerSwitch2 = true;
   }
   /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
    *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
-  if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay && userInput && userInput2 && !userInput3)
+  if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay)
   { 
     userInput3 = true;
     LCDTimerSwitch2 = false;
@@ -393,7 +434,7 @@ void User_Input_Access_Menu()
  //=====================================SUB MENU 2 CODE==========================================//
  //==============================================================================================//
  
-  if(userInput && userInput2 && !faultHistory)
+  if(userInput && userInput2 && !faultHistory && !userInput3)
   { 
     n = digitalRead(encoderPinA);
     if ((encoderPinALast == LOW) && (n == HIGH)) 
@@ -436,48 +477,225 @@ void User_Input_Access_Menu()
       }
     }
     encoderPinALast = n;
-  }
-
-  if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false && userInput && userInput2 && !userInput3)
-  {
-    LCDdebounce2 = millis();
-    LCDTimerSwitch2 = true;
-  }
-  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
-   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
-  if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay && userInput && userInput2 && !userInput3)
-  { 
-    userInput3 = true;
-    LCDTimerSwitch2 = false;
-    if(userInput3 && Cursor == 1)
+    
+    if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)
     {
-      contact1Status = !contact1Status;
-      lcd.setCursor(10,1);
-      lcd.print("        ");
-      lcd.setCursor(10,1);
-      if(contact1Status)
+      LCDdebounce2 = millis();
+      LCDTimerSwitch2 = true;
+    }
+    /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+     *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+    if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay)
+    { 
+      userInput3 = true;
+      LCDTimerSwitch2 = false;
+      if(userInput3 && Cursor == 1)
       {
-        lcd.print("ACTIVE");
-      }
-      else
+        contact1Status = !contact1Status;
+        lcd.setCursor(10,1);
+        lcd.print("        ");
+        lcd.setCursor(10,1);
+        if(contact1Status)
+        {
+          lcd.print("ACTIVE");
+        }
+        else
+        {
+          lcd.print("INACTIVE");
+        }
+          userInput3 = false;
+        }
+      else if(userInput3 && Cursor == 2)
       {
-        lcd.print("INACTIVE");
+        lcd.setCursor(0,2);
+        lcd.print("ENTER NEW#");
+        lcd.setCursor(10,2);
+        lcd.blink();
+        userInput3 = true;
+        Cursor = 10;
+        //lcd.cursor();
       }
+      else if(userInput3 && Cursor == 3)
+      {
         userInput3 = false;
+        userInput2 = false;
+        Cursor = 0;
+        User_Input_Main_Screen(Cursor);
       }
-    else if(userInput3 && Cursor == 2)
-    {
-      lcd.clear();
-      lcd.setCursor(2,0);
-      lcd.print("EDITING");
-    }
-    else if(userInput3 && Cursor == 3)
-    {
-      userInput3 = false;
-      userInput2 = false;
-      Cursor = 0;
-      User_Input_Main_Screen(Cursor);
     }
   }
+  
+  //==============================================================================================//
+  //==============================CONTACT NUMBER EDITING CODE=====================================//
+  //==============================================================================================//
+ 
+  while(userInput3)
+  { 
+    static char newContact[11];
+    //if(newContact[10] != '\0')newContact[10] = '\0';
+    static char newDigit{48};
+    n = digitalRead(encoderPinA);
+    if ((encoderPinALast == LOW) && (n == HIGH)) 
+    {
+      if (digitalRead(encoderPinB) == LOW) 
+      {
+        //Counter Clockwise turn
+        newDigit--;
+        if(newDigit < 48)
+        {
+          newDigit =57;
+          return;//prevents LCD flicker
+        }
+        lcd.setCursor(Cursor,2);
+        lcd.print(newDigit);
+      } 
+      else 
+      {
+        newDigit++;
+        if(newDigit == 58)
+        {
+          newDigit = 48;
+          return;//prevents LCD flicker
+        }
+        lcd.setCursor(Cursor,2);
+        lcd.print(newDigit);
+      }
+    }
+    encoderPinALast = n;
+    
+    if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)
+    {
+      LCDdebounce2 = millis();
+      LCDTimerSwitch2 = true;
+    }
+    /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+     *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+    if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay)
+    { 
+      userInput4 = true;
+      LCDTimerSwitch2 = false;
+      if(userInput4)
+      {
+        Cursor++;
+        if(Cursor < 10)
+        {
+          Cursor = 19;
+        }
+        if(Cursor == 20)
+        {
+          Cursor = 10;
+          return;//prevents LCD flicker
+        }
+        static int i {};
+        newContact[i] = newDigit;
+        i++;
+        Serial.println(newContact);//*****NOT FINISHED****
+        userInput4 = false;
+      }
+    }
+  }
+  
+  
+}
 
+void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)
+{
+  char buffer[20];
+  static int SavedAlarmCounter {};// The number displayed on the LCD screen after "SAVED ALARM:" (1 indicates the most recent saved alarm)
+  alarmVariable readingSTRUCT;
+  
+// Logic for determining if the user is turning the knob CW, CCW, or just pushed the button
+  if(encoderTurnDirection == CW)//User turned the dial ClockWise
+  {
+    outputCounter -= eepromAlarmDataSize;//outputCounter will always be one eepromAlarmDataSize less than the EEPROMinputCounter
+    SavedAlarmCounter++;
+    if(SavedAlarmCounter > numberOfSavedFaults)// Recycle
+    {
+      SavedAlarmCounter = 1;
+    }
+  }
+  else if (encoderTurnDirection == CCW)//User tunred the dial CounterClockWise
+  {
+    outputCounter += eepromAlarmDataSize;
+    SavedAlarmCounter--;
+    if(SavedAlarmCounter < 1)// Recycle
+    {
+      SavedAlarmCounter = numberOfSavedFaults;
+    }
+  }
+  else // encoderTurnDirection == PUSH_BUTTON == (0) This is when the user first pushes the rotary encoder
+  {
+    outputCounter = EEPROMinputCounter - eepromAlarmDataSize;
+    SavedAlarmCounter = 1;
+  }
+
+// Recycle the EEPROM address (outputCounter) in a loop fashion
+  if(outputCounter < 0)
+  {
+    outputCounter = eepromAlarmDataSize * (numberOfSavedFaults - 1); //The inputCounter recyles when it gets to numberOfSavedFaults, so that exact address never actually gets used, hence the - 1.
+  }
+  if(outputCounter == (eepromAlarmDataSize * numberOfSavedFaults)) 
+  {
+    outputCounter = 0;
+    printf("RESET outputCounter NOW.\n\n");
+  }
+  EEPROM.get(outputCounter, readingSTRUCT);
+  printf("EEPROMinputCounter is %i\n",EEPROMinputCounter);
+  printf("EEPROM ALARM is retrieved from slot %i.\n", ((outputCounter / eepromAlarmDataSize) + 1)); //outputCounter will always be one eepromAlarmDataSize less than the EEPROMinputCounter
+  printf("Alarm code: %i\n", readingSTRUCT.alarm);
+  printf("Date: %i/%i/%i\n", readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
+  printf("Time: %i:%i:%i\n",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.backlight();
+  lcd.print("SAVED ALARM: ");
+  lcd.print(SavedAlarmCounter);
+  lcd.setCursor(0, 1);
+  switch(readingSTRUCT.alarm)//Need to add more options here for the FSG alarms
+  {
+    case 1: lcd.print(PrimaryString);break;
+    case 2: lcd.print(SecondaryString);break;
+    case 3: lcd.print(AlarmString);break;
+    case 4: lcd.print(hlpcString);break;
+    case 255: lcd.print(DefaultString);break;
+    default: lcd.print("Generic Fault ERROR"); 
+  }
+  lcd.setCursor(0, 2);
+  sprintf(buffer,"Date: %i/%.2i/%.2i",readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
+  lcd.print(buffer);
+  lcd.setCursor(0, 3);
+  sprintf(buffer,"Time: %.2i:%.2i:%.2i",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
+  lcd.print(buffer);
+  printf("outputCounter is now = %i.\n\n", outputCounter);
+}
+
+void EEPROM_Prefill()// EEPROM initialization function
+{
+  // Do we need redundancy here? 
+  if(EEPROM.read(EEPROMInitializationAddress) == EEPROMInitializationKey) //If this is true then the EEPROM has already been initialized.  
+  {
+    printf("\n***EEPROM has been previously initialized.***\n");
+    EEPROM.get(EEPROMinputCounterAddress, EEPROMinputCounter);
+  }
+  else 
+  {
+    printf("\n***EEPROM is uninitialized... PreFilling EEPROM Faults now.***\n\n");
+    EEPROM.write(EEPROMInitializationAddress, EEPROMInitializationKey);
+    EEPROM.put (EEPROMinputCounterAddress, EEPROMinputCounter);
+    const alarmVariable prefillSTRUCT = {255, 1111, 11, 11, 11, 11, 11};
+    for (int i = 0; i < EEPROMLastFaultAddress; i += eepromAlarmDataSize)
+    {
+      EEPROM.put(i, prefillSTRUCT);
+    }
+  //  alarmVariable readingSTRUCT;
+  //  for ( int i = 0; i < EEPROMLastFaultAddress; i += eepromAlarmDataSize)
+  //  {
+  //    EEPROM.get(i,readingSTRUCT);
+  //    printf("EEPROMinputCounter is %i \n",i);
+  //    printf("EEPROM ALARM is retrieved from slot %i.\n",((i/eepromAlarmDataSize) + 1));
+  //    printf("Alarm code: %i\n", readingSTRUCT.alarm);
+  //    printf("Date: %i/%i/%i\n",readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
+  //    printf("Time: %i:%i:%i\n",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
+  //  }
+  }
 }
