@@ -19,7 +19,7 @@ static bool userInput3{};
 static bool userInput4{};
 static bool faultHistory{};
 
-const char* contact1 {"6158122833"};
+const char* contact1 {};
 static bool contact1Status {ACTIVE}; // will need to be stored in the EEPROM for when a loss of power happens 
 
 //LCD Menu Logic
@@ -110,6 +110,7 @@ void setup()
   lcd.setCursor(2, 1);
   lcd.print("AB3D Squawk Box");
   delay(2000);
+  reboot_From_Contact_Change("To2.txt", contact1);
 }
 
 
@@ -688,13 +689,12 @@ void User_Input_Access_Menu()
             if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay)
             { 
               LCDTimerSwitch2 = false;
-                if(selector == 0)// SAVE
+                if(selector == 0)// SAVE NEW CONTACT 
                 {
-                  //EEPROM function to save contact1
                   Save_New_Contact("To2.txt", newContact);
                   digitalWrite(resetPin, LOW);
                 }
-                else if(selector == 1)//REDO
+                else if(selector == 1)//REDO NEW CONTACT
                 {
                   userInput4 = false;
                   lcd.setCursor(0,2);
@@ -722,7 +722,7 @@ void User_Input_Access_Menu()
 
 void Save_New_Contact(char SDFILE[], char NEWCONTACT[])
 {
-  File myFile = SD.open(SDFILE, O_WRITE);
+  myFile = SD.open(SDFILE, O_WRITE);
   if (myFile) 
   {
     myFile.print(NEWCONTACT);
@@ -732,6 +732,31 @@ void Save_New_Contact(char SDFILE[], char NEWCONTACT[])
   else
   {
     printf("Save_New_Contact() failed.\n");
+  }
+}
+
+void reboot_From_Contact_Change(char file_name[], const char* &CONTACT)
+{
+  myFile = SD.open(file_name);
+  if (myFile) 
+  {
+    // read from the file until there's nothing else in it:
+    int i{};
+    char Temp[10];
+    while (myFile.available())
+    {
+      char c = myFile.read();  //gets one byte from serial buffer
+      Temp[i] = c;
+      i++;
+    }
+    CONTACT = Temp;
+    myFile.close();
+  }
+  else
+  {
+    // if the file didn't open, print an error:
+    Serial.print("***ERROR opening reboot_From_Contact_Change file ");
+    Serial.println(file_name);
   }
 }
 
