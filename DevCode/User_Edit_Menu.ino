@@ -1,3 +1,4 @@
+#include <SD.h>
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
 #include <RTClib.h>
@@ -25,6 +26,8 @@ static bool contact1Status {ACTIVE}; // will need to be stored in the EEPROM for
 const char* MainScreen[8] = {"Fault History","Contact 1","Contact 2","Contact 3","Contact 4","Contact 5","Contact 6","EXIT"};
 const char* contactScreen[6] = {"CURRENT#","STATUS: ","EDIT#","EXIT","SAVE#","REDO#"};
 
+const int resetPin {48};
+
 const int pushButton {42};   //=====================//
 const int encoderPinA {44};  // Rotary encoder pins //
 const int encoderPinB {46};  //=====================//
@@ -48,6 +51,8 @@ struct alarmVariable
    byte second; 
 };
 
+
+
 //EEPROM variables
 const int numberOfSavedFaults {400};
 const int eepromAlarmDataSize = sizeof(alarmVariable); 
@@ -65,9 +70,12 @@ enum EEPROMAlarmCode
 };
 
 RTC_PCF8523 rtc;
+File myFile;
 
 void setup() 
 {
+  digitalWrite(resetPin,HIGH);
+  pinMode(resetPin, OUTPUT);
   Serial.begin(9600);
 
   printf("This is squawkbox V3.LCD.0 sketch.\n");
@@ -682,9 +690,9 @@ void User_Input_Access_Menu()
               LCDTimerSwitch2 = false;
                 if(selector == 0)// SAVE
                 {
-                  userInput4 = false;
-                  userInput3 = false;
-                  User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status);
+                  //EEPROM function to save contact1
+                  Save_New_Contact("To2.txt", newContact);
+                  digitalWrite(resetPin, LOW);
                 }
                 else if(selector == 1)//REDO
                 {
@@ -710,6 +718,21 @@ void User_Input_Access_Menu()
   }
   
   
+}
+
+void Save_New_Contact(char SDFILE[], char NEWCONTACT[])
+{
+  File myFile = SD.open(SDFILE, O_WRITE);
+  if (myFile) 
+  {
+    myFile.print(NEWCONTACT);
+    myFile.close();    //Close the file
+    printf("Save_New_Contact() Complete.\n");
+  } 
+  else
+  {
+    printf("Save_New_Contact() failed.\n");
+  }
 }
 
 void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)
