@@ -19,7 +19,7 @@ static bool userInput3{};
 static bool userInput4{};
 static bool faultHistory{};
 
-const char* contact1 {};
+static char contact1[11] {"0000000000"};
 static bool contact1Status {ACTIVE}; // will need to be stored in the EEPROM for when a loss of power happens 
 
 //LCD Menu Logic
@@ -74,8 +74,8 @@ File myFile;
 
 void setup() 
 {
-  digitalWrite(resetPin,HIGH);
-  pinMode(resetPin, OUTPUT);
+  //digitalWrite(resetPin,HIGH);
+  pinMode(resetPin, INPUT_PULLUP);
   Serial.begin(9600);
 
   printf("This is squawkbox V3.LCD.0 sketch.\n");
@@ -99,7 +99,8 @@ void setup()
       
    }
   rtc.start();
-  
+
+  boot_SD();
   pinMode (encoderPinA, INPUT);
   pinMode (encoderPinB, INPUT);
   pinMode (pushButton, INPUT_PULLUP);
@@ -110,7 +111,7 @@ void setup()
   lcd.setCursor(2, 1);
   lcd.print("AB3D Squawk Box");
   delay(2000);
-  reboot_From_Contact_Change("To2.txt", contact1);
+  //reboot_From_Contact_Change("to2.txt", contact1);
 }
 
 
@@ -165,7 +166,7 @@ void User_Input_Main_Screen(int CURSOR)
   }
 }
 
-void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, const char* CONTACT, bool STATUS) 
+void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
 {
     lcd.clear();
     lcd.setCursor(0,CURSOR);
@@ -191,7 +192,7 @@ void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, const char* CON
     lcd.print(SCREEN[3]);
 }
 
-void Contact_Edit_Screen(const char* SCREEN[], int CURSOR, const char* CONTACT, bool STATUS) 
+void Contact_Edit_Screen(const char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
 {
     lcd.clear();
     lcd.setCursor(0,0);
@@ -561,7 +562,7 @@ void User_Input_Access_Menu()
   while(userInput3)
   {
     static char newContact[11];
-    if(newContact[10] != '\0')newContact[10] = '\0';
+    //if(newContact[10] != '\0')newContact[10] = '\0';
     static char newDigit{48};
     n = digitalRead(encoderPinA);
     if ((encoderPinALast == LOW) && (n == HIGH)) 
@@ -691,8 +692,12 @@ void User_Input_Access_Menu()
               LCDTimerSwitch2 = false;
                 if(selector == 0)// SAVE NEW CONTACT 
                 {
-                  Save_New_Contact("To2.txt", newContact);
+                  strcpy(contact1,newContact);
+                  Save_New_Contact(contact1);
                   digitalWrite(resetPin, LOW);
+                  userInput4 = false;
+                  userInput3 = false;
+                  User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status);
                 }
                 else if(selector == 1)//REDO NEW CONTACT
                 {
@@ -710,7 +715,6 @@ void User_Input_Access_Menu()
                   userInput3 = false;
                   User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status);
                 }
-                Serial.println(newContact);//*****NOT FINISHED****
              }
           }
         }
@@ -720,13 +724,14 @@ void User_Input_Access_Menu()
   
 }
 
-void Save_New_Contact(char SDFILE[], char NEWCONTACT[])
+void Save_New_Contact(char NEWCONTACT[])
 {
-  myFile = SD.open(SDFILE, O_WRITE);
+  printf("Save_New_Contact().\n");
+  myFile = SD.open("to2.txt", O_WRITE);
   if (myFile) 
   {
     myFile.print(NEWCONTACT);
-    myFile.close();    //Close the file
+    myFile.close();
     printf("Save_New_Contact() Complete.\n");
   } 
   else
@@ -735,22 +740,24 @@ void Save_New_Contact(char SDFILE[], char NEWCONTACT[])
   }
 }
 
-void reboot_From_Contact_Change(char file_name[], const char* &CONTACT)
+void reboot_From_Contact_Change(char file_name[], char CONTACT[])
 {
   myFile = SD.open(file_name);
   if (myFile) 
   {
     // read from the file until there's nothing else in it:
     int i{};
-    char Temp[10];
+    //char Temp[11];
     while (myFile.available())
     {
       char c = myFile.read();  //gets one byte from serial buffer
-      Temp[i] = c;
+      //Temp[i] = c;
+      CONTACT[i] = c;
       i++;
     }
-    CONTACT = Temp;
     myFile.close();
+    //const char* holder = Temp;
+    //return Temp;
   }
   else
   {
@@ -859,5 +866,55 @@ void EEPROM_Prefill()// EEPROM initialization function
   //    printf("Date: %i/%i/%i\n",readingSTRUCT.year,readingSTRUCT.month,readingSTRUCT.day);
   //    printf("Time: %i:%i:%i\n",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
   //  }
+  }
+}
+
+void boot_SD() //see if the card is present and can be initialized
+{
+  if (!SD.begin(10)) 
+  {
+    printf("***ERROR SD Card failed or not present.***\n");
+    // LCD display code for SD failure***********************************************************************
+  }
+  else
+  {
+    printf("SD.begin() is GOOD.\n");
+    //const char* FILE {"DataLog.txt"}; //Arduino file names can only be <= 8 characters
+    myFile = SD.open("DataLog.txt", FILE_WRITE);
+    if (myFile) 
+    {
+      if(myFile.position() == 0)
+      {
+        myFile.println("Fault, UnixTime, Year, Month, Day, Hour, Minute, Second");
+        myFile.close();
+        printf("SD Card initialization complete.\n");
+      }
+      else
+      {
+        DateTime now = rtc.now();
+        myFile.print("SystemRESET");
+        myFile.print(",");
+        myFile.print(now.unixtime());
+        myFile.print(",");
+        myFile.print(now.year());  
+        myFile.print(",");      
+        myFile.print(now.month());  
+        myFile.print(",");
+        myFile.print(now.day());  
+        myFile.print(",");
+        myFile.print(now.hour());  
+        myFile.print(",");
+        myFile.print(now.minute());  
+        myFile.print(",");
+        myFile.print(now.second());
+        myFile.println();  //End of Row move to next row
+        myFile.close();    //Close the file
+        printf("SD Prior initialization recognition & SystemRESET Data Log Complete.\n");
+      }
+    }
+    else
+    {
+      printf("***ERROR SD Prior initialization recognition OR SystemRESET Data Log Failed.***\n");
+    }
   }
 }
