@@ -37,8 +37,6 @@ static bool contact6Status {ACTIVE};
 const char* MainScreen[8] = {"Fault History","Contact 1","Contact 2","Contact 3","Contact 4","Contact 5","Contact 6","EXIT"};
 const char* contactScreen[6] = {"CURRENT#","STATUS: ","EDIT#","EXIT","SAVE#","REDO#"};
 
-const int resetPin {48};
-
 const int pushButton {42};   //=====================//
 const int encoderPinA {44};  // Rotary encoder pins //
 const int encoderPinB {46};  //=====================//
@@ -85,8 +83,6 @@ File myFile;
 
 void setup() 
 {
-  //digitalWrite(resetPin,HIGH);
-  pinMode(resetPin, INPUT_PULLUP);
   Serial.begin(9600);
 
   printf("This is squawkbox V3.LCD.0 sketch.\n");
@@ -122,7 +118,6 @@ void setup()
   lcd.setCursor(2, 1);
   lcd.print("AB3D Squawk Box");
   delay(2000);
-  //reboot_From_Contact_Change("to2.txt", contact1);
 }
 
 
@@ -774,33 +769,6 @@ void Save_New_Contact(char NEWCONTACT[])
   else
   {
     printf("Save_New_Contact() failed.\n");
-  }
-}
-
-void reboot_From_Contact_Change(char file_name[], char CONTACT[])
-{
-  myFile = SD.open(file_name);
-  if (myFile) 
-  {
-    // read from the file until there's nothing else in it:
-    int i{};
-    //char Temp[11];
-    while (myFile.available())
-    {
-      char c = myFile.read();  //gets one byte from serial buffer
-      //Temp[i] = c;
-      CONTACT[i] = c;
-      i++;
-    }
-    myFile.close();
-    //const char* holder = Temp;
-    //return Temp;
-  }
-  else
-  {
-    // if the file didn't open, print an error:
-    Serial.print("***ERROR opening reboot_From_Contact_Change file ");
-    Serial.println(file_name);
   }
 }
 
