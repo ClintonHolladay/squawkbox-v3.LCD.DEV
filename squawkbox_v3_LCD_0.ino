@@ -22,6 +22,9 @@
 //#define PRINTF_DISABLE_ALL // Not working as advertised
 //#define printf(x...) // Deletes ALL prinf() functions 
 
+#define ACTIVE 1
+#define INACTIVE 0
+
 //Rotary encoder definitons
 #define CW 1
 #define CCW -1
@@ -67,12 +70,35 @@ static bool PLWCOSent{};
 static bool SLWCOSent{};
 static bool HWAlarmSent{};
 static bool hlpcSent{};
-static bool userInput = false; // when true display EEPROM faults
-                               // when false display current faults
+
 static char urlHeaderArray[100]; // Twilio end point url (twilio might changes this!)
 // holds the phone number to recieve text messages
 static char contactFromArray1[25];
 static char conToTotalArray[60];
+
+static bool userInput{};
+static bool userInput2{};
+static bool userInput3{};
+static bool userInput4{};
+static bool faultHistory{};
+
+static char contact1[11] {"1111111111"};
+static char contact2[11] {"2222222222"};
+static char contact3[11] {"3333333333"};
+static char contact4[11] {"4444444444"};
+static char contact5[11] {"5555555555"};
+static char contact6[11] {"6666666666"};
+
+static bool contact1Status {ACTIVE}; // will need to be stored in the EEPROM for when a loss of power happens 
+static bool contact2Status {ACTIVE};
+static bool contact3Status {ACTIVE};
+static bool contact4Status {ACTIVE};
+static bool contact5Status {ACTIVE};
+static bool contact6Status {ACTIVE};
+
+//LCD Menu Logic
+const char* MainScreen[8] = {"Fault History","Contact 1","Contact 2","Contact 3","Contact 4","Contact 5","Contact 6","EXIT"};
+const char* contactScreen[6] = {"CURRENT#","STATUS: ","EDIT#","EXIT","SAVE#","REDO#"};
 
 //=============User defined Data Types===================//
 
@@ -95,7 +121,13 @@ const uint8_t EEPROMInitializationKey {69};
 const int EEPROMInitializationAddress {4020};
 const int EEPROMinputCounterAddress {4000};
 const int EEPROMLastFaultAddress {3600};
-enum EEPROMAlarmCode {PLWCO = 1, SLWCO, FSGalarm, HighLimit};
+enum EEPROMAlarmCode 
+{
+  PLWCO = 1, 
+  SLWCO, 
+  FSGalarm, 
+  HighLimit
+};
 
 //================INSTANTIATION================//
 
@@ -195,7 +227,7 @@ void loop()
   HLPC();
   timedmsg();
   SMSRequest();
-  UserInputAccessEEPROM();
+  User_Input_Access_Menu();
   //printf("%u\n",millis());
 }
 
@@ -297,59 +329,6 @@ void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)
   sprintf(buffer,"Time: %.2i:%.2i:%.2i",readingSTRUCT.hour,readingSTRUCT.minute,readingSTRUCT.second);
   lcd.print(buffer);
   printf("outputCounter is now = %i.\n\n", outputCounter);
-}
-
-void UserInputAccessEEPROM()
-{
-  static int LCDscreenPage {};
-  static int encoderPinALast {LOW};
-  static int n {LOW};
-  static unsigned long LCDdebounce{};
-  static int debounceDelay{350};
-  static bool LCDTimerSwitch {false};
-
-  // Using a timer to latch the momentary user input into a constant ON or OFF position
-  // LCDTimerSwitch is used to allow main loop to continue and LCDdebounce to only be set to millis() once per pushButton push
-  if(digitalRead(pushButton) == LOW && LCDTimerSwitch == false)
-  {
-    LCDdebounce = millis();
-    LCDTimerSwitch = true;
-  }
-  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
-   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
-  if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
-  {
-    userInput = !userInput;
-    LCDscreenPage = 0;
-    LCDTimerSwitch = false;
-    if(userInput)
-    {
-      Serial.println("User Input Recieved ON");
-      EEPROMalarmPrint(LCDscreenPage, 0);
-    }
-    else Serial.println ("User Input Recieved OFF");
-  }
-  /*  The userInput bool is used as a latch so that the LCD screen continues to display what the user wants until the pushButton 
-   *  is activated again. When the above timer algorithm has been satisfied the squawk will begin tracking rotational rotary 
-   *  encoder input from the user in order to traverse and LCD display the EEPROM fault data.*/
-  if(userInput)
-  {
-    n = digitalRead(encoderPinA);
-    if ((encoderPinALast == LOW) && (n == HIGH)) 
-    {
-      if (digitalRead(encoderPinB) == LOW) 
-      {
-        //Counter Clockwise turn
-        EEPROMalarmPrint(LCDscreenPage, -1);
-      } 
-      else 
-      {
-        //Clockwise turn
-        EEPROMalarmPrint(LCDscreenPage, 1);
-      }
-    }
-    encoderPinALast = n;
-  } 
 }
 
 void print_alarms()//rethink how this function is layed out and structured...
@@ -1133,5 +1112,635 @@ float get_flame_signal()
   {
     printf("***ERROR Flame signal retrival failed.***\n");
     return -1.0;
+  }
+}
+
+void User_Input_Main_Screen(int CURSOR) 
+{
+  if(CURSOR < 4)
+  {
+    lcd.clear();
+    lcd.setCursor(0,CURSOR);
+    lcd.print("-");
+    lcd.setCursor(1,CURSOR);
+    lcd.print(">");
+    for(int i = 0; i < 4; i++)
+    {
+      lcd.setCursor(2,i);
+      lcd.print(MainScreen[i]);
+    }
+  }
+  else
+  {
+    lcd.clear();
+    lcd.setCursor(0,CURSOR - 4);
+    lcd.print("-");
+    lcd.setCursor(1,CURSOR - 4);
+    lcd.print(">");
+    for(int i = 0; i < 4; i++)
+    {
+      lcd.setCursor(2,i);
+      lcd.print(MainScreen[i + 4]);
+    }
+  }
+}
+
+void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
+{
+    lcd.clear();
+    lcd.setCursor(0,CURSOR);
+    lcd.print("-");
+    lcd.setCursor(1,CURSOR);
+    lcd.print(">");
+    lcd.setCursor(2,0);
+    lcd.print(SCREEN[0]);
+    lcd.print(CONTACT);
+    lcd.setCursor(2,1);
+    lcd.print(SCREEN[1]);
+    if(STATUS)
+    {
+      lcd.print("ACTIVE");
+    }
+    else
+    {
+      lcd.print("INACTIVE");
+    }
+    lcd.setCursor(2,2);
+    lcd.print(SCREEN[2]);
+    lcd.setCursor(2,3);
+    lcd.print(SCREEN[3]);
+}
+
+void Contact_Edit_Screen(const char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
+{
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print(SCREEN[0]);
+    lcd.print("  ");
+    lcd.print(CONTACT);
+    lcd.setCursor(0,1);
+    lcd.print("ENTER NEW#0");
+    lcd.setCursor(2,2);
+    lcd.print(SCREEN[4]);
+    lcd.setCursor(2,3);
+    lcd.print(SCREEN[5]);
+    lcd.setCursor(10,3);
+    lcd.print(SCREEN[3]);
+    lcd.setCursor(10,1);
+    lcd.blink();
+}
+
+void User_Input_Access_Menu()
+{
+ //==============================================================================================//
+ //==============================================================================================//
+ //==================================MAIN MENU FUNCTION==========================================//
+ //==============================================================================================//
+ //==============================================================================================//
+ 
+  static int Cursor{};
+  static int encoderPinALast {LOW}; 
+  static int n {LOW};
+  static unsigned long LCDdebounce{};
+  static int debounceDelay{350};
+  static bool LCDTimerSwitch {false};
+  static int whichContactToEdit{};
+
+  // Using a timer to latch the momentary user input into a constant ON or OFF position
+  // LCDTimerSwitch is used to allow main loop to continue and LCDdebounce to only be set to millis() once per pushButton push
+  if(digitalRead(pushButton) == LOW && LCDTimerSwitch == false && !userInput && !userInput2)
+  {
+    LCDdebounce = millis();
+    LCDTimerSwitch = true;
+  }
+  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+  if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && !userInput && !userInput2)
+  {
+    userInput = true;
+    LCDTimerSwitch = false;
+    if(userInput)//this line not needed?
+    {
+      Serial.println("User Input Recieved ON");
+      Cursor = 0;//this line not needed?
+      User_Input_Main_Screen(Cursor);//change to take no arguments and default cursor to 0 in the body of the function?
+    }
+    else Serial.println ("User Input Recieved OFF");//this line not needed?
+  }
+  /*  The userInput bool is used as a latch so that the LCD screen continues to display what the user wants until the pushButton 
+   *  is activated again. When the above timer algorithm has been satisfied the squawk will begin tracking rotational rotary 
+   *  encoder input from the user in order to traverse and LCD display the EEPROM fault data.*/
+  if(userInput && !userInput2)//change and log the position of the cursor on the MAIN screen
+  {
+    n = digitalRead(encoderPinA); // make into a funciton with the number of lines as a parameter
+    if ((encoderPinALast == LOW) && (n == HIGH)) 
+    {
+      if (digitalRead(encoderPinB) == LOW) 
+      {
+        delay(10);//UI tuning. Makes the display user's interaction lees choppy.
+        //Counter Clockwise turn
+        Cursor--;
+        if(Cursor < 0)
+        {
+          Cursor = 0;
+          delay(10);//UI tuning. Makes the display user's interaction lees choppy.
+          //return;
+        }
+        if(Cursor < 4)
+        {
+          if(Cursor == 3)
+          {
+            lcd.clear();
+            for(int i = 0; i < 4; i++)
+            {
+              lcd.setCursor(2,i);
+              lcd.print(MainScreen[i]);
+            }
+          }
+          lcd.setCursor(0,Cursor + 1);
+          lcd.print(" ");
+          lcd.setCursor(1,Cursor + 1);
+          lcd.print(" ");
+          lcd.setCursor(0,Cursor);
+          lcd.print("-");
+          lcd.setCursor(1,Cursor);
+          lcd.print(">");
+        }
+        else
+        {
+          lcd.setCursor(0,Cursor - 3);
+          lcd.print(" ");
+          lcd.setCursor(1,Cursor - 3);
+          lcd.print(" ");
+          lcd.setCursor(0,Cursor - 4);
+          lcd.print("-");
+          lcd.setCursor(1,Cursor - 4);
+          lcd.print(">");
+        }
+      } 
+      else 
+      {
+        delay(10);//UI tuning. Makes the display user's interaction lees choppy.
+        //Clockwise turn
+        Cursor++;
+        if(Cursor > 7)
+        {
+          Cursor = 7;
+          //return;
+        }
+        if(Cursor < 4)
+        {
+          lcd.setCursor(0,Cursor - 1);
+          lcd.print(" ");
+          lcd.setCursor(1,Cursor - 1);
+          lcd.print(" ");
+          lcd.setCursor(0,Cursor);
+          lcd.print("-");
+          lcd.setCursor(1,Cursor);
+          lcd.print(">");
+        }
+        else
+        {
+          if(Cursor == 4)
+          {
+            lcd.clear();
+            for(int i = 0; i < 4; i++)
+            {
+              lcd.setCursor(2,i);
+              lcd.print(MainScreen[i + 4]);
+            }
+          }
+          lcd.setCursor(0,Cursor - 5);
+          lcd.print(" ");
+          lcd.setCursor(1,Cursor - 5);
+          lcd.print(" ");
+          lcd.setCursor(0,Cursor - 4);
+          lcd.print("-");
+          lcd.setCursor(1,Cursor - 4);
+          lcd.print(">");
+        }
+      }
+     }
+    }
+    encoderPinALast = n; 
+  
+ //==============================================================================================//
+ //==============================================================================================//
+ //======================================SUB MENU CODE===========================================//
+ //==============================================================================================//
+ //==============================================================================================//
+ 
+  if(digitalRead(pushButton) == LOW && LCDTimerSwitch == false && userInput && !userInput2)
+  {
+    LCDdebounce = millis();
+    LCDTimerSwitch = true;
+    whichContactToEdit = 0;
+  }
+  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+  if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && userInput && !userInput2)
+  { 
+    userInput2 = true;
+    LCDTimerSwitch = false;
+    if(userInput2 && Cursor == 0)
+    {
+      faultHistory = true;
+      EEPROMalarmPrint(Cursor, 0);
+    }
+    else if(userInput2 && Cursor == 1)
+    {
+      User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status);
+      whichContactToEdit = 1;
+      Cursor = 0;
+    }
+    else if(userInput2 && Cursor == 2)
+    {
+      User_Input_Contact_Screen(contactScreen, 1, contact2, contact2Status);
+      whichContactToEdit = 2;
+      Cursor = 0;
+    }
+    else if(userInput2 && Cursor == 3)
+    {
+      User_Input_Contact_Screen(contactScreen, 1, contact3, contact3Status);
+      whichContactToEdit = 3;
+      Cursor = 0;
+    }
+    else if(userInput2 && Cursor == 4)
+    {
+      User_Input_Contact_Screen(contactScreen, 1, contact4, contact4Status);
+      whichContactToEdit = 4;
+      Cursor = 0;
+    }
+    else if(userInput2 && Cursor == 5)
+    {
+      User_Input_Contact_Screen(contactScreen, 1, contact5, contact5Status);
+      whichContactToEdit = 5;
+      Cursor = 0;
+    }
+    else if(userInput2 && Cursor == 6)
+    {
+      User_Input_Contact_Screen(contactScreen, 1, contact6, contact6Status);
+      whichContactToEdit = 6;
+      Cursor = 0;
+    }
+    else if(userInput2 && Cursor == 7)
+    {
+      userInput2 = false;
+      userInput = false;
+    }
+  }
+
+ //==============================================================================================//
+ //=================================EEPROM MENU FUNCTION=========================================//
+ //==============================================================================================//
+
+  if(userInput && userInput2 && faultHistory)
+  { 
+    n = digitalRead(encoderPinA);
+    if ((encoderPinALast == LOW) && (n == HIGH)) 
+    {
+      if (digitalRead(encoderPinB) == LOW) 
+      {
+        //Counter Clockwise turn
+        EEPROMalarmPrint(Cursor, -1);
+      } 
+      else
+      {
+        //Clockwise turn
+        EEPROMalarmPrint(Cursor, 1);
+      }
+    }
+    encoderPinALast = n;
+
+  if(digitalRead(pushButton) == LOW) //(&& LCDTimerSwitch == false) took this out to speed up the pushbutton recognition
+  {
+    LCDdebounce = millis();
+    LCDTimerSwitch = true;
+  }
+  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+  if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
+  { 
+    userInput3 = true;
+    LCDTimerSwitch = false;
+    if(userInput3)
+    {
+      userInput3 = false;
+      userInput2 = false;
+      faultHistory = false;
+      Cursor = 0;
+      User_Input_Main_Screen(Cursor);
+    }
+  }
+ }
+
+ //==============================================================================================//
+ //=====================================SUB MENU 2 CODE==========================================//
+ //==============================================================================================//
+
+  switch(whichContactToEdit)
+  {
+    case 0:break;
+    case 1: Contact_Edit_Menu(contact1Status, contact1);
+    break;
+    case 2: Contact_Edit_Menu(contact2Status, contact2);
+    break;
+    case 3: Contact_Edit_Menu(contact3Status, contact3);
+    break;
+    case 4: Contact_Edit_Menu(contact4Status, contact4);
+    break;
+    case 5: Contact_Edit_Menu(contact5Status, contact5);
+    break;
+    case 6: Contact_Edit_Menu(contact6Status, contact6);
+    break;
+    default: break;
+  } 
+}
+
+void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
+{
+  static unsigned long LCDdebounce2{};
+  static bool LCDTimerSwitch2 {false};
+  static int debounceDelay2{350};
+  static int Cursor2{1};
+  static int encoderPinALast2 {LOW}; 
+  static int n2 {LOW};
+  
+  if(userInput && userInput2 && !faultHistory)
+  { 
+    n2 = digitalRead(encoderPinA);
+    if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
+    {
+      if (digitalRead(encoderPinB) == LOW) 
+      {
+        //Counter Clockwise turn
+        Cursor2--;
+        delay(20);//UI tuning. Makes the display user's interaction lees choppy.
+        if(Cursor2 < 1)
+        {
+          Cursor2 = 1;
+          delay(10);//UI tuning. Makes the display user's interaction lees choppy.
+         // return;//might prevent LCD flicker  
+        }
+        lcd.setCursor(0,Cursor2 + 1);
+        lcd.print(" ");
+        lcd.setCursor(1,Cursor2 + 1);
+        lcd.print(" ");
+        lcd.setCursor(0,Cursor2);
+        lcd.print("-");
+        lcd.setCursor(1,Cursor2);
+        lcd.print(">");
+      } 
+      else 
+      {
+        //Clockwise turn
+        Cursor2++;
+        delay(20);//UI tuning. Makes the display user's interaction lees choppy.
+        if(Cursor2 > 3)
+        {
+          Cursor2 = 3;
+          delay(10);//UI tuning. Makes the display user's interaction lees choppy.
+          //return;//might prevent LCD flicker
+        }
+        lcd.setCursor(0,Cursor2 - 1);
+        lcd.print(" ");
+        lcd.setCursor(1,Cursor2 - 1);
+        lcd.print(" ");
+        lcd.setCursor(0,Cursor2);
+        lcd.print("-");
+        lcd.setCursor(1,Cursor2);
+        lcd.print(">");
+      }
+    }
+    encoderPinALast2 = n2;
+    
+    if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)
+    {
+      LCDdebounce2 = millis();
+      LCDTimerSwitch2 = true;
+    }
+    /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+     *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+    if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
+    { 
+      userInput3 = true;
+      LCDTimerSwitch2 = false;
+      if(userInput3 && Cursor2 == 1)// Turn CONTACT ON/OFF
+      {
+        //code for turning on/off this contact and saving it to the EEPROM
+        CONTACTSTATUS = !CONTACTSTATUS;
+        lcd.setCursor(10,1);
+        lcd.print("        ");
+        lcd.setCursor(10,1);
+        if(CONTACTSTATUS)
+        {
+          lcd.print("ACTIVE");
+        }
+        else
+        {
+          lcd.print("INACTIVE");
+        }
+          userInput3 = false;
+        }
+      else if(userInput3 && Cursor2 == 2)//EDIT CONTACT
+      {
+        lcd.setCursor(0,2);
+        lcd.print("ENTER NEW#");
+        lcd.setCursor(10,2);
+        lcd.blink();
+        Cursor2 = 10;
+        Contact_Edit_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+        userInput3 = true;
+      }
+      else if(userInput3 && Cursor2 == 3)//EXIT CONTACT
+      {
+        userInput3 = false;
+        userInput2 = false;
+        Cursor2 = 1;
+        User_Input_Main_Screen(0);
+      }
+    }
+  }
+  
+  //==============================================================================================//
+  //==============================CONTACT NUMBER EDITING CODE=====================================//
+  //==============================================================================================//
+ 
+  while(userInput3)
+  {
+    static char newContact[11];
+    //if(newContact[10] != '\0')newContact[10] = '\0';
+    static char newDigit{48};
+    n2 = digitalRead(encoderPinA);
+    if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
+    {
+      if (digitalRead(encoderPinB) == LOW) 
+      {
+        //Counter Clockwise turn
+        newDigit--;
+        if(newDigit < 48)
+        {
+          newDigit =57;
+          return;//prevents LCD flicker
+        }
+        lcd.setCursor(Cursor2,1);
+        lcd.print(newDigit);
+        lcd.setCursor(Cursor2,1);
+      } 
+      else //Clockwise turn
+      {
+        newDigit++;
+        if(newDigit == 58)
+        {
+          newDigit = 48;
+          return;//prevents LCD flicker
+        }
+        lcd.setCursor(Cursor2,1);
+        lcd.print(newDigit);
+        lcd.setCursor(Cursor2,1);
+      }
+    }
+    encoderPinALast2 = n2;
+    
+    if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)
+    {
+      LCDdebounce2 = millis();
+      LCDTimerSwitch2 = true;
+    }
+    /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+     *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+    if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
+    { 
+      LCDTimerSwitch2 = false;
+        Cursor2++;
+        if(Cursor2< 10)
+        {
+          Cursor2 = 19;
+        }
+        if(Cursor2 == 20)
+        {
+          Cursor2 = 10;
+        }
+        static int i {};
+        newContact[i] = newDigit;
+        i++;
+        printf("i = %i\n",i);
+        Serial.print("newContact# in now: ");
+        Serial.println(newContact);
+        newDigit = 48; //ASCII '48' == 0
+        if(i < 10)
+        {
+          lcd.setCursor(Cursor2,1);
+          lcd.print(newDigit);
+          lcd.setCursor(Cursor2,1);
+        }
+        if(i == 10)
+        {
+          printf("Inside the if(i == 10) condition.\n");
+          i = 0;
+          userInput4 = true;
+          lcd.noBlink();
+          lcd.setCursor(0,2);
+          lcd.print("-");
+          lcd.setCursor(1,2);
+          lcd.print(">");
+          while(userInput4)
+          {
+            static int selector{};
+            n2 = digitalRead(encoderPinA);
+            if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
+            {
+              if (digitalRead(encoderPinB) == LOW) 
+              {
+                //Counter Clockwise turn
+                selector--;
+                if(selector < 0)
+                {
+                  selector = 2;
+                }
+              } 
+              else //Clockwise turn
+              {
+                selector++;
+                if(selector == 3)
+                {
+                  selector = 0;
+                }
+              }
+              switch(selector)
+              {
+                case 0: lcd.setCursor(0,2);lcd.print("-");lcd.setCursor(1,2);lcd.print(">");
+                        lcd.setCursor(0,3);lcd.print(" ");lcd.setCursor(1,3);lcd.print(" ");
+                        lcd.setCursor(8,3);lcd.print(" ");lcd.setCursor(9,3);lcd.print(" ");
+                break;
+                case 1: lcd.setCursor(0,2);lcd.print(" ");lcd.setCursor(1,2);lcd.print(" ");
+                        lcd.setCursor(0,3);lcd.print("-");lcd.setCursor(1,3);lcd.print(">");
+                        lcd.setCursor(8,3);lcd.print(" ");lcd.setCursor(9,3);lcd.print(" ");
+                break;
+                case 2: lcd.setCursor(0,2);lcd.print(" ");lcd.setCursor(1,2);lcd.print(" ");
+                        lcd.setCursor(0,3);lcd.print(" ");lcd.setCursor(1,3);lcd.print(" ");
+                        lcd.setCursor(8,3);lcd.print("-");lcd.setCursor(9,3);lcd.print(">");
+                break;
+                default: 
+                break; 
+              }
+            }
+            encoderPinALast2 = n2;
+            
+            if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)
+            {
+              LCDdebounce2 = millis();
+              LCDTimerSwitch2 = true;
+            }
+            /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+             *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+            if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
+            { 
+              LCDTimerSwitch2 = false;
+                if(selector == 0)// SAVE NEW CONTACT 
+                {
+                  strcpy(CONTACT,newContact);
+                  Save_New_Contact(CONTACT);
+                  userInput4 = false;
+                  userInput3 = false;
+                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+                }
+                else if(selector == 1)//REDO NEW CONTACT
+                {
+                  userInput4 = false;
+                  lcd.setCursor(0,2);
+                  lcd.print("ENTER NEW#");
+                  lcd.setCursor(10,2);
+                  lcd.blink();
+                  Cursor2 = 10;
+                  Contact_Edit_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+                }
+                else if(selector == 2)//EXIT
+                {
+                  userInput4 = false;
+                  userInput3 = false;
+                  Cursor2 = 1;
+                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+                }
+             }
+          }
+        }
+     }
+  }
+}
+
+void Save_New_Contact(char NEWCONTACT[])
+{
+  printf("Save_New_Contact().\n");
+  myFile = SD.open("to2.txt", O_WRITE);
+  if (myFile) 
+  {
+    myFile.print(NEWCONTACT);
+    myFile.close();
+    printf("Save_New_Contact() Complete.\n");
+  } 
+  else
+  {
+    printf("Save_New_Contact() failed.\n");
   }
 }
