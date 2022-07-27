@@ -89,7 +89,7 @@ static char contact4[11] {"4444444444"};
 static char contact5[11] {"5555555555"};
 static char contact6[11] {"6666666666"};
 
-static bool contact1Status {ACTIVE}; // will need to be stored in the EEPROM for when a loss of power happens 
+static bool contact1Status {ACTIVE}; 
 static bool contact2Status {ACTIVE};
 static bool contact3Status {ACTIVE};
 static bool contact4Status {ACTIVE};
@@ -121,6 +121,12 @@ const uint8_t EEPROMInitializationKey {69};
 const int EEPROMInitializationAddress {4020};
 const int EEPROMinputCounterAddress {4000};
 const int EEPROMLastFaultAddress {3600};
+static int contact1Address {3801};
+static int contact2Address {3802};
+static int contact3Address {3803};
+static int contact4Address {3804};
+static int contact5Address {3805};
+static int contact6Address {3806};
 enum EEPROMAlarmCode 
 {
   PLWCO = 1, 
@@ -229,6 +235,13 @@ void loop()
   SMSRequest();
   User_Input_Access_Menu();
   //printf("%u\n",millis());
+//  printf("Bools\n");
+//  printf("bool is: %i.\n",EEPROM.read(contact1Address));
+//  printf("bool is: %i.\n",EEPROM.read(contact2Address));
+//  printf("bool is: %i.\n",EEPROM.read(contact3Address));
+//  printf("bool is: %i.\n",EEPROM.read(contact4Address));
+//  printf("bool is: %i.\n",EEPROM.read(contact5Address));
+//  printf("bool is: %i.\n",EEPROM.read(contact6Address));
 }
 
 
@@ -1075,6 +1088,12 @@ void EEPROM_Prefill()// EEPROM initialization function
   {
     printf("\n***EEPROM has been previously initialized.***\n");
     EEPROM.get(EEPROMinputCounterAddress, EEPROMinputCounter);
+    contact1Status = EEPROM.read(contact1Address);
+    contact2Status = EEPROM.read(contact2Address);
+    contact3Status = EEPROM.read(contact3Address);
+    contact4Status = EEPROM.read(contact4Address);
+    contact5Status = EEPROM.read(contact5Address);
+    contact6Status = EEPROM.read(contact6Address);
   }
   else 
   {
@@ -1105,7 +1124,7 @@ float get_flame_signal()
   if (result == node.ku8MBSuccess)
   {
     float flameSignal = node.getResponseBuffer(result);
-    flameSignal = map(flameSignal,0,255,0,25.5);//As per the S7800A1146 Display manual 
+    flameSignal = map(flameSignal,0,105,0,5);//As per the S7800A1146 Display manual 
     return flameSignal;
   }
   else
@@ -1117,6 +1136,7 @@ float get_flame_signal()
 
 void User_Input_Main_Screen(int CURSOR) 
 {
+  lcd.backlight();
   if(CURSOR < 4)
   {
     lcd.clear();
@@ -1256,16 +1276,16 @@ void User_Input_Access_Menu()
               lcd.setCursor(2,i);
               lcd.print(MainScreen[i]);
             }
-          }
-          lcd.setCursor(0,Cursor + 1);
-          lcd.print(" ");
-          lcd.setCursor(1,Cursor + 1);
-          lcd.print(" ");
-          lcd.setCursor(0,Cursor);
-          lcd.print("-");
-          lcd.setCursor(1,Cursor);
-          lcd.print(">");
-        }
+          }                                  //====================//
+          lcd.setCursor(0,Cursor + 1);       //->Fault History     // 
+          lcd.print(" ");                    //->Contact 1         //
+          lcd.setCursor(1,Cursor + 1);       //->Contact 2         //
+          lcd.print(" ");                    //->Contact 3         //
+          lcd.setCursor(0,Cursor);           //->Contact 4         //
+          lcd.print("-");                    //->Contact 5         //
+          lcd.setCursor(1,Cursor);           //->Contact 6         //  
+          lcd.print(">");                    //->EXIT              //
+        }                                    //====================//
         else
         {
           lcd.setCursor(0,Cursor - 3);
@@ -1336,8 +1356,6 @@ void User_Input_Access_Menu()
     LCDTimerSwitch = true;
     whichContactToEdit = 0;
   }
-  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
-   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
   if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && userInput && !userInput2)
   { 
     userInput2 = true;
@@ -1391,7 +1409,7 @@ void User_Input_Access_Menu()
   }
 
  //==============================================================================================//
- //=================================EEPROM MENU FUNCTION=========================================//
+ //================================FAULT HISTORY MENU FUNCTION===================================//
  //==============================================================================================//
 
   if(userInput && userInput2 && faultHistory)
@@ -1417,8 +1435,6 @@ void User_Input_Access_Menu()
     LCDdebounce = millis();
     LCDTimerSwitch = true;
   }
-  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
-   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
   if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
   { 
     userInput3 = true;
@@ -1441,23 +1457,23 @@ void User_Input_Access_Menu()
   switch(whichContactToEdit)
   {
     case 0:break;
-    case 1: Contact_Edit_Menu(contact1Status, contact1);
+    case 1: Contact_Edit_Menu(contact1, "to1.txt", contact1Address, contact1Status);
     break;
-    case 2: Contact_Edit_Menu(contact2Status, contact2);
+    case 2: Contact_Edit_Menu(contact2, "to2.txt", contact2Address, contact2Status);
     break;
-    case 3: Contact_Edit_Menu(contact3Status, contact3);
+    case 3: Contact_Edit_Menu(contact3, "to3.txt", contact3Address, contact3Status);
     break;
-    case 4: Contact_Edit_Menu(contact4Status, contact4);
+    case 4: Contact_Edit_Menu(contact4, "to4.txt", contact4Address, contact4Status);
     break;
-    case 5: Contact_Edit_Menu(contact5Status, contact5);
+    case 5: Contact_Edit_Menu(contact5, "to5.txt", contact5Address, contact5Status);
     break;
-    case 6: Contact_Edit_Menu(contact6Status, contact6);
+    case 6: Contact_Edit_Menu(contact6, "to6.txt", contact6Address, contact6Status);
     break;
     default: break;
   } 
 }
 
-void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
+void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACTSTATUS)
 {
   static unsigned long LCDdebounce2{};
   static bool LCDTimerSwitch2 {false};
@@ -1479,8 +1495,7 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
         if(Cursor2 < 1)
         {
           Cursor2 = 1;
-          delay(10);//UI tuning. Makes the display user's interaction lees choppy.
-         // return;//might prevent LCD flicker  
+          delay(10);//UI tuning. Makes the display user's interaction lees choppy. 
         }
         lcd.setCursor(0,Cursor2 + 1);
         lcd.print(" ");
@@ -1500,7 +1515,6 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
         {
           Cursor2 = 3;
           delay(10);//UI tuning. Makes the display user's interaction lees choppy.
-          //return;//might prevent LCD flicker
         }
         lcd.setCursor(0,Cursor2 - 1);
         lcd.print(" ");
@@ -1519,8 +1533,6 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
       LCDdebounce2 = millis();
       LCDTimerSwitch2 = true;
     }
-    /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
-     *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
     if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
     { 
       userInput3 = true;
@@ -1529,6 +1541,7 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
       {
         //code for turning on/off this contact and saving it to the EEPROM
         CONTACTSTATUS = !CONTACTSTATUS;
+        EEPROM_Save_Contact_Status(ADDRESS, CONTACTSTATUS);
         lcd.setCursor(10,1);
         lcd.print("        ");
         lcd.setCursor(10,1);
@@ -1541,7 +1554,7 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
           lcd.print("INACTIVE");
         }
           userInput3 = false;
-        }
+      }
       else if(userInput3 && Cursor2 == 2)//EDIT CONTACT
       {
         lcd.setCursor(0,2);
@@ -1581,7 +1594,6 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
         if(newDigit < 48)
         {
           newDigit =57;
-          return;//prevents LCD flicker
         }
         lcd.setCursor(Cursor2,1);
         lcd.print(newDigit);
@@ -1593,7 +1605,6 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
         if(newDigit == 58)
         {
           newDigit = 48;
-          return;//prevents LCD flicker
         }
         lcd.setCursor(Cursor2,1);
         lcd.print(newDigit);
@@ -1607,8 +1618,6 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
       LCDdebounce2 = millis();
       LCDTimerSwitch2 = true;
     }
-    /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
-     *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
     if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
     { 
       LCDTimerSwitch2 = false;
@@ -1692,18 +1701,17 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
               LCDdebounce2 = millis();
               LCDTimerSwitch2 = true;
             }
-            /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
-             *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
             if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
             { 
               LCDTimerSwitch2 = false;
                 if(selector == 0)// SAVE NEW CONTACT 
                 {
                   strcpy(CONTACT,newContact);
-                  Save_New_Contact(CONTACT);
+                  Save_New_Contact(txtDOC, CONTACT);
                   userInput4 = false;
                   userInput3 = false;
                   User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+                  Cursor2 = 1;
                 }
                 else if(selector == 1)//REDO NEW CONTACT
                 {
@@ -1729,10 +1737,15 @@ void Contact_Edit_Menu(bool& CONTACTSTATUS, char CONTACT[])
   }
 }
 
-void Save_New_Contact(char NEWCONTACT[])
+void EEPROM_Save_Contact_Status(int ADDRESS, bool CONTACTSTATUS)
+{
+  EEPROM.write(ADDRESS,CONTACTSTATUS);
+}
+
+void Save_New_Contact(char txtDOC[], char NEWCONTACT[])
 {
   printf("Save_New_Contact().\n");
-  myFile = SD.open("to2.txt", O_WRITE);
+  myFile = SD.open(txtDOC, O_WRITE);
   if (myFile) 
   {
     myFile.print(NEWCONTACT);
