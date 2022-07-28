@@ -1250,6 +1250,8 @@ void Contact_Edit_Screen( char* SCREEN[], int CURSOR, char CONTACT[], bool STATU
     lcd.print(SCREEN[5]);
     lcd.setCursor(10,3);
     lcd.print(SCREEN[3]);
+    lcd.setCursor(10,2);
+    lcd.print("TIMER:");
     lcd.setCursor(10,1);
     lcd.blink();
 }
@@ -1626,6 +1628,54 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
  
   while(userInput3)
   {
+    static bool timerSwitch {false};
+    static const unsigned int threemintimer {180000};  
+    static unsigned long difference6 {};
+    static unsigned long timerStart {};
+    if (timerSwitch == false)
+    {
+      timerStart = millis();
+      timerSwitch = true;
+    }
+    
+    difference6 = millis() - timerStart;
+    
+    if (difference6 > threemintimer)
+    {
+      timerSwitch = false;
+      userInput4 = false;
+      userInput3 = false;
+      Cursor2 = 1;
+      lcd.clear();
+      lcd.setCursor(4,1);
+      lcd.print("Timer up");
+      lcd.noBlink();
+      delay(5000);
+      User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+      break;
+    }
+    static bool Switch {false};
+    static const unsigned int oneSecTimer {1000};  
+    static unsigned long difference7 {};
+    static unsigned long Start {};
+    
+    if (Switch == false)
+    {
+      Start = millis();
+      Switch = true;
+    }
+    
+    difference7 = millis() - Start;
+    
+    if (difference7 > oneSecTimer)
+    {
+      Switch = false;
+      lcd.noBlink();
+      lcd.setCursor(16,2);
+      lcd.print(180 - (difference6/1000));
+      lcd.blink();
+      lcd.setCursor(Cursor2,1);
+    }
     static char newContact[11];
     //if(newContact[10] != '\0')newContact[10] = '\0';
     static char newDigit{48};
@@ -1782,6 +1832,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                   lcd.blink();
                   Cursor2 = 10;
                   Contact_Edit_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+                  timerStart = millis();
                 }
                 else if(selector == 2)//EXIT
                 {
@@ -1794,7 +1845,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
           }
         }
      }
-  }
+  } 
 }
 
 void EEPROM_Save_Contact_Status(int ADDRESS, bool CONTACTSTATUS)
