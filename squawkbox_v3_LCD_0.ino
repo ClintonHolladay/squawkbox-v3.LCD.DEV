@@ -13,14 +13,13 @@
 
 #include <SD.h>
 #include <ModbusMaster.h>
-#include <Wire.h> // Library for I2C communication
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
 #include <RTClib.h>
 #include <LibPrintf.h>
 
-//#define PRINTF_DISABLE_ALL // Not working as advertised
-//#define printf(x...) // Deletes ALL prinf() functions 
+//#define PRINTF_DISABLE_ALL // Not working as advertised in the LibPrintf.h GutHub
+//#define printf(x...) // Deletes ALL prinf() functions in order to make the production code faster/smoother. 
 
 #define ACTIVE 1
 #define INACTIVE 0
@@ -48,6 +47,7 @@ const int SLWCOoutletPin {16};
 const int pushButton {42};   //=====================//
 const int encoderPinA {44};  // Rotary encoder pins //
 const int encoderPinB {46};  //=====================//
+static int Cursor{};//Making this a global allowed for saving the cursor position when EXITing the contact menus
 
 const int debounceInterval {3000};//NEEDS TO BE MADE CHANGEABLE ON SD CARD
                                   // to prevent false alarms from electrical noise and also prevents repeat messages from bouncing PLWCOs.   
@@ -74,7 +74,7 @@ static bool hlpcSent{};
 static char urlHeaderArray[100]; // Twilio end point url (twilio might changes this!)
 // holds the phone number to recieve text messages
 static char contactFromArray1[25];
-static char conToTotalArray[60];
+static char conToTotalArray[60] {"To="};
 
 static bool userInput{};
 static bool userInput2{};
@@ -89,12 +89,12 @@ static char contact4[11] {"4444444444"};
 static char contact5[11] {"5555555555"};
 static char contact6[11] {"6666666666"};
 
-static bool contact1Status {ACTIVE}; 
-static bool contact2Status {ACTIVE};
-static bool contact3Status {ACTIVE};
-static bool contact4Status {ACTIVE};
-static bool contact5Status {ACTIVE};
-static bool contact6Status {ACTIVE};
+static bool contact1Status {INACTIVE}; 
+static bool contact2Status {INACTIVE};
+static bool contact3Status {INACTIVE};
+static bool contact4Status {INACTIVE};
+static bool contact5Status {INACTIVE};
+static bool contact6Status {INACTIVE};
 
 //LCD Menu Logic
 const char* MainScreen[8] = {"Fault History","Contact 1","Contact 2","Contact 3","Contact 4","Contact 5","Contact 6","EXIT"};
@@ -207,10 +207,10 @@ void setup()
   printf("Starting SIMboot().\n");
   SIMboot();
   boot_SD();
+  EEPROM_Prefill();
   loadContacts(); //run the SD card function.
   Serial.println(F("Contacts Loaded.  Booting SIM module.  Initiating wakeup sequence..."));
   initiateSim();
-  EEPROM_Prefill();
   Serial.println(F("Setup() Function complete. Entering Main Loop() Function"));
   lcd.clear();
   lcd.noBacklight();
@@ -853,65 +853,109 @@ void boot_SD() //see if the card is present and can be initialized
 
 void loadContacts()
 {
-  String URLheader = "";
-  String conFrom1 = "";
-  String conTo1 = "";
-  String conTo2 = "";
-  String conTo3 = "";
-  String conToTotal = "To=";
-  //load "from" number.  This is the number alert messages will apear to be from.
-  conFrom1 = fill_from_SD("from1.txt");
-  conFrom1.toCharArray(contactFromArray1, 25);
-  Serial.print("From nums: ");
-  Serial.print(contactFromArray1);
-  conTo1 = fill_from_SD("To1.txt");
-  if (conTo1[0] > 0) 
+  fill_from_SD("from1.txt", contactFromArray1);// from # doesnt just have digits in it...???
+  Serial.print("From number is: ");
+  Serial.println(contactFromArray1);
+  fill_from_SD("to1.txt", contact1);
+  if (contact1[0] > 0 && contact1Status) // maybe do if (contact1[0] > 48 && contact1[0] < 58 && contact1Status)
   {
-    conToTotal += conTo1;
+    strcat(conToTotalArray, contact1);
   }
-  conTo2 = fill_from_SD("To2.txt");
-  if (conTo2[0] > 0) 
+  fill_from_SD("to2.txt", contact2);
+  if (contact2[0] > 0 && contact2Status) 
   {
-    conToTotal += "," + conTo2;
+    if(conToTotalArray[3] == '\0')
+    {
+      strcat(conToTotalArray, contact2);
+    }
+    else
+    {
+      strcat(conToTotalArray, ",");
+      strcat(conToTotalArray, contact2);
+    }
   }
-  conTo3 = fill_from_SD("To3.txt");
-  if (conTo3[0] > 0) 
+  fill_from_SD("to3.txt",contact3);
+  if (contact3[0] > 0 && contact3Status) 
   {
-    conToTotal += "," + conTo3;
+    if(conToTotalArray[3] == '\0')
+    {
+      strcat(conToTotalArray, contact3);
+    }
+    else
+    {
+      strcat(conToTotalArray, ",");
+      strcat(conToTotalArray, contact3);
+    }
   }
-  conToTotal += "&";    //format the "to" list of numbers for being in the URL by ending it with '&' so that next parameter can come after
-  Serial.print(F("The total contact list is: "));
-  Serial.println(conToTotal);
+  fill_from_SD("to4.txt", contact4);
+  if (contact4[0] > 0 && contact4Status) 
+  {
+    if(conToTotalArray[3] == '\0')
+    {
+      strcat(conToTotalArray, contact4);
+    }
+    else
+    {
+      strcat(conToTotalArray, ",");
+      strcat(conToTotalArray, contact4);
+    }
+  }
+  fill_from_SD("to5.txt", contact5);
+  if (contact5[0] > 0 && contact5Status) 
+  {
+    if(conToTotalArray[3] == '\0')
+    {
+      strcat(conToTotalArray, contact5);
+    }
+    else
+    {
+      strcat(conToTotalArray, ",");
+      strcat(conToTotalArray, contact5);
+    }
+  }
+  fill_from_SD("to6.txt", contact6);
+  if (contact6[0] > 0 && contact6Status) 
+  {
+    if(conToTotalArray[3] == '\0')
+    {
+      strcat(conToTotalArray, contact6);
+    }
+    else
+    {
+      strcat(conToTotalArray, ",");
+      strcat(conToTotalArray, contact6);
+    }
+  }
+  strcat(conToTotalArray, "&");//format the "to" list of numbers for being in the URL by ending it with '&' so that next parameter can come after
+  printf("The total contact list is: \n");
+  Serial.println(conToTotalArray);
   Serial.print("fourth position character: ");
-  Serial.println(conToTotal[3]);
-  if (conToTotal[3] == ',')
-  {
-    conToTotal.remove(3, 1);
-    Serial.print(F("New contact list: "));
-    Serial.println(conToTotal);
-  }
-  conToTotal.toCharArray(conToTotalArray, 60);
-  URLheader = fill_from_SD("URL.txt");
-  URLheader.toCharArray(urlHeaderArray, 100);
+  Serial.println(conToTotalArray[3]);
+  fill_from_SD("URL.txt", urlHeaderArray);
   Serial.print("URL header is: ");
   Serial.println(urlHeaderArray);
 }
 
-String fill_from_SD(String file_name)
+void fill_from_SD(char file_name[], char CONTACT[])
 {
-  String temporary_string = "";
-  String info_from_SD = "";
-  myFile = SD.open(file_name);
+  myFile = SD.open(file_name, FILE_WRITE);
   if (myFile) 
   {
-    // read from the file until there's nothing else in it:
-    while (myFile.available())
+    int i{};
+    myFile.seek(0);
+    if(myFile.available())
     {
-      char c = myFile.read();  //gets one byte from serial buffer
-      info_from_SD += c;
-    }
+      while (myFile.available())
+      {
+        char c = myFile.read();  //gets one byte from serial buffer
+        CONTACT[i] = c;
+        i++;
+      }
     myFile.close();
-    return info_from_SD;
+    CONTACT[i] = '\0'; //may not be needed
+    }
+    Serial.print("CONTACT is: ");
+    Serial.println(CONTACT);
   }
   else
   {
@@ -1074,10 +1118,10 @@ void LCDwaiting()
   lcd.print("MESSAGE");
   lcd.setCursor(4, 3);
   lcd.print("PLEASE WAIT");
-  if(userInput)
+  if(userInput || userInput2)
   {
-    userInput = false; /*If the user is accessing the EEPROM memory faults while a new fault occurs, 
-                        this will kick them out of that menu and allow for the display of the new fault.*/
+    userInput = false; //If the user is accessing the EEPROM memory faults while a new fault occurs, 
+    userInput2 = false; //this will kick them out of that menu and allow for the display of the new fault.
   }
 }
 
@@ -1191,7 +1235,7 @@ void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[],
     lcd.print(SCREEN[3]);
 }
 
-void Contact_Edit_Screen(const char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
+void Contact_Edit_Screen( char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
 {
     lcd.clear();
     lcd.setCursor(0,0);
@@ -1218,7 +1262,7 @@ void User_Input_Access_Menu()
  //==============================================================================================//
  //==============================================================================================//
  
-  static int Cursor{};
+  //static int Cursor{};
   static int encoderPinALast {LOW}; 
   static int n {LOW};
   static unsigned long LCDdebounce{};
@@ -1369,37 +1413,37 @@ void User_Input_Access_Menu()
     {
       User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status);
       whichContactToEdit = 1;
-      Cursor = 0;
+      //Cursor = 0; // Allowed for saving the cursor position when EXITing the contact menus
     }
     else if(userInput2 && Cursor == 2)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact2, contact2Status);
       whichContactToEdit = 2;
-      Cursor = 0;
+      //Cursor = 0;
     }
     else if(userInput2 && Cursor == 3)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact3, contact3Status);
       whichContactToEdit = 3;
-      Cursor = 0;
+      //Cursor = 0;
     }
     else if(userInput2 && Cursor == 4)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact4, contact4Status);
       whichContactToEdit = 4;
-      Cursor = 0;
+      //Cursor = 0;
     }
     else if(userInput2 && Cursor == 5)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact5, contact5Status);
       whichContactToEdit = 5;
-      Cursor = 0;
+      //Cursor = 0;
     }
     else if(userInput2 && Cursor == 6)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact6, contact6Status);
       whichContactToEdit = 6;
-      Cursor = 0;
+      //Cursor = 0;
     }
     else if(userInput2 && Cursor == 7)
     {
@@ -1430,24 +1474,24 @@ void User_Input_Access_Menu()
     }
     encoderPinALast = n;
 
-  if(digitalRead(pushButton) == LOW) //(&& LCDTimerSwitch == false) took this out to speed up the pushbutton recognition
-  {
-    LCDdebounce = millis();
-    LCDTimerSwitch = true;
-  }
-  if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
-  { 
-    userInput3 = true;
-    LCDTimerSwitch = false;
-    if(userInput3)
+    if(digitalRead(pushButton) == LOW) //(&& LCDTimerSwitch == false) took this out to speed up the pushbutton recognition
     {
-      userInput3 = false;
-      userInput2 = false;
-      faultHistory = false;
-      Cursor = 0;
-      User_Input_Main_Screen(Cursor);
+      LCDdebounce = millis();
+      LCDTimerSwitch = true;
     }
-  }
+    if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
+    { 
+      userInput3 = true;
+      LCDTimerSwitch = false;
+      if(userInput3)
+      {
+        userInput3 = false;
+        userInput2 = false;
+        faultHistory = false;
+        Cursor = 0;
+        User_Input_Main_Screen(Cursor);
+      }
+    }
  }
 
  //==============================================================================================//
@@ -1537,9 +1581,8 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
     { 
       userInput3 = true;
       LCDTimerSwitch2 = false;
-      if(userInput3 && Cursor2 == 1)// Turn CONTACT ON/OFF
+      if(userInput3 && Cursor2 == 1)// TURN CONTACT ON/OFF
       {
-        //code for turning on/off this contact and saving it to the EEPROM
         CONTACTSTATUS = !CONTACTSTATUS;
         EEPROM_Save_Contact_Status(ADDRESS, CONTACTSTATUS);
         lcd.setCursor(10,1);
@@ -1553,7 +1596,9 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         {
           lcd.print("INACTIVE");
         }
-          userInput3 = false;
+        userInput3 = false;
+        strcpy(conToTotalArray,"To=");
+        loadContacts();
       }
       else if(userInput3 && Cursor2 == 2)//EDIT CONTACT
       {
@@ -1570,7 +1615,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         userInput3 = false;
         userInput2 = false;
         Cursor2 = 1;
-        User_Input_Main_Screen(0);
+        User_Input_Main_Screen(Cursor);
       }
     }
   }
@@ -1653,6 +1698,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
           lcd.print("-");
           lcd.setCursor(1,2);
           lcd.print(">");
+          
           while(userInput4)
           {
             static int selector{};
@@ -1663,17 +1709,21 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
               {
                 //Counter Clockwise turn
                 selector--;
+                delay(20);
                 if(selector < 0)
                 {
                   selector = 2;
+                  delay(20);
                 }
               } 
               else //Clockwise turn
               {
                 selector++;
+                delay(20);
                 if(selector == 3)
                 {
                   selector = 0;
+                  delay(20);
                 }
               }
               switch(selector)
@@ -1706,12 +1756,22 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
               LCDTimerSwitch2 = false;
                 if(selector == 0)// SAVE NEW CONTACT 
                 {
+                  char confirmContact[15]{"To="};
                   strcpy(CONTACT,newContact);
+                  strcat(confirmContact,newContact);
+                  confirmContact[13] = '&';
+                  confirmContact[14] = '\0';
+                  Serial.print("confirmContact is: ");
+                  Serial.println(confirmContact);
                   Save_New_Contact(txtDOC, CONTACT);
+                  strcpy(conToTotalArray,"To=");
+                  loadContacts();
                   userInput4 = false;
                   userInput3 = false;
-                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
                   Cursor2 = 1;
+                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+                  sendSMS(urlHeaderArray, confirmContact, contactFromArray1, "Body=Contact%20Changed\"\r");
+                  delay(20);
                 }
                 else if(selector == 1)//REDO NEW CONTACT
                 {
