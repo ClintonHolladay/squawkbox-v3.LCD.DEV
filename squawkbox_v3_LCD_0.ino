@@ -1,15 +1,12 @@
 // TODO:
 // Change the Serial.print() to printf().
-// Change Strings to char[].
-// reassess how values are passed in UserInputAccessEEPROM().
 // Add functions for Pump amps() / Aw Na box() / any others???
-// Create function for User input Text to change personal phone number.
-// Create function for User input Text to turn OFF or ON personal text messages.
 // Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
-// Display blow down reminder after 48 hours of no PLWCO.
+// Display blowdown reminder after 48 hours of no PLWCO.
 // Send blow down text after 72 hours of no PLWCO.
-// make an RTC function to clean up the setup()
-// Add function to send a Flame signal text message
+// Make an RTC function to clean up the setup().
+// Add function to send a Flame signal text message.
+// Prompt when all contacts are inactive.
 
 #include <SD.h>
 #include <ModbusMaster.h>
@@ -21,6 +18,7 @@
 //#define PRINTF_DISABLE_ALL // Not working as advertised in the LibPrintf.h GutHub
 //#define printf(x...) // Deletes ALL prinf() functions in order to make the production code faster/smoother. 
 
+//User activated contact # ON/OFF definitons
 #define ACTIVE 1
 #define INACTIVE 0
 
@@ -127,6 +125,7 @@ static int contact3Address {3803};
 static int contact4Address {3804};
 static int contact5Address {3805};
 static int contact6Address {3806};
+
 enum EEPROMAlarmCode 
 {
   PLWCO = 1, 
@@ -1209,15 +1208,15 @@ void User_Input_Main_Screen(int CURSOR)
   }
 }
 
-void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
+void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS, char CONTACTNAME[]) 
 {
     lcd.clear();
     lcd.setCursor(0,CURSOR);
     lcd.print("-");
     lcd.setCursor(1,CURSOR);
     lcd.print(">");
-    lcd.setCursor(2,0);
-    lcd.print(SCREEN[0]);
+    lcd.setCursor(0,0);
+    lcd.print(CONTACTNAME);
     lcd.print(CONTACT);
     lcd.setCursor(2,1);
     lcd.print(SCREEN[1]);
@@ -1251,7 +1250,7 @@ void Contact_Edit_Screen( char* SCREEN[], int CURSOR, char CONTACT[], bool STATU
     lcd.setCursor(10,3);
     lcd.print(SCREEN[3]);
     lcd.setCursor(10,2);
-    lcd.print("TIMER:");
+    lcd.print("TIMER:180");
     lcd.setCursor(10,1);
     lcd.blink();
 }
@@ -1413,37 +1412,37 @@ void User_Input_Access_Menu()
     }
     else if(userInput2 && Cursor == 1)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status);
+      User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status, "CONTACT 1-");
       whichContactToEdit = 1;
       //Cursor = 0; // Allowed for saving the cursor position when EXITing the contact menus
     }
     else if(userInput2 && Cursor == 2)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact2, contact2Status);
+      User_Input_Contact_Screen(contactScreen, 1, contact2, contact2Status, "CONTACT 2-");
       whichContactToEdit = 2;
       //Cursor = 0;
     }
     else if(userInput2 && Cursor == 3)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact3, contact3Status);
+      User_Input_Contact_Screen(contactScreen, 1, contact3, contact3Status, "CONTACT 3-");
       whichContactToEdit = 3;
       //Cursor = 0;
     }
     else if(userInput2 && Cursor == 4)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact4, contact4Status);
+      User_Input_Contact_Screen(contactScreen, 1, contact4, contact4Status, "CONTACT 4-");
       whichContactToEdit = 4;
       //Cursor = 0;
     }
     else if(userInput2 && Cursor == 5)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact5, contact5Status);
+      User_Input_Contact_Screen(contactScreen, 1, contact5, contact5Status, "CONTACT 5-");
       whichContactToEdit = 5;
       //Cursor = 0;
     }
     else if(userInput2 && Cursor == 6)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact6, contact6Status);
+      User_Input_Contact_Screen(contactScreen, 1, contact6, contact6Status, "CONTACT 6-");
       whichContactToEdit = 6;
       //Cursor = 0;
     }
@@ -1503,23 +1502,23 @@ void User_Input_Access_Menu()
   switch(whichContactToEdit)
   {
     case 0:break;
-    case 1: Contact_Edit_Menu(contact1, "to1.txt", contact1Address, contact1Status);
+    case 1: Contact_Edit_Menu(contact1, "to1.txt", contact1Address, contact1Status, "CONTACT 1-");
     break;
-    case 2: Contact_Edit_Menu(contact2, "to2.txt", contact2Address, contact2Status);
+    case 2: Contact_Edit_Menu(contact2, "to2.txt", contact2Address, contact2Status, "CONTACT 2-");
     break;
-    case 3: Contact_Edit_Menu(contact3, "to3.txt", contact3Address, contact3Status);
+    case 3: Contact_Edit_Menu(contact3, "to3.txt", contact3Address, contact3Status, "CONTACT 3-");
     break;
-    case 4: Contact_Edit_Menu(contact4, "to4.txt", contact4Address, contact4Status);
+    case 4: Contact_Edit_Menu(contact4, "to4.txt", contact4Address, contact4Status, "CONTACT 4-");
     break;
-    case 5: Contact_Edit_Menu(contact5, "to5.txt", contact5Address, contact5Status);
+    case 5: Contact_Edit_Menu(contact5, "to5.txt", contact5Address, contact5Status, "CONTACT 4-");
     break;
-    case 6: Contact_Edit_Menu(contact6, "to6.txt", contact6Address, contact6Status);
+    case 6: Contact_Edit_Menu(contact6, "to6.txt", contact6Address, contact6Status, "CONTACT 6-");
     break;
     default: break;
   } 
 }
 
-void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACTSTATUS)
+void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACTSTATUS, char CONTACTNAME[])
 {
   static unsigned long LCDdebounce2{};
   static bool LCDTimerSwitch2 {false};
@@ -1636,13 +1635,9 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
     {
       timerStart = millis();
       timerSwitch = true;
-      printf("FIRST timerStart: %i\n", timerStart);
     }
     
     difference6 = millis() - timerStart;
-    printf("difference6: %lu\n", difference6);
-    printf("Millis(): %lu\n", millis());
-    printf("timerStart: %lu\n", timerStart);
     if (difference6 > threemintimer)
     {
       timerSwitch = false;
@@ -1651,10 +1646,10 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
       Cursor2 = 1;
       lcd.clear();
       lcd.setCursor(4,1);
-      lcd.print("Timer up");
+      lcd.print("TIME OUT");
       lcd.noBlink();
       delay(5000);
-      User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+      User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
       break;
     }
     static bool Switch {false};
@@ -1683,17 +1678,23 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
       }
       else if(counter >= 10)
       {
-        lcd.setCursor(18,2);
-        lcd.print(" ");
         lcd.setCursor(16,2);
         lcd.print(counter);
       }
       else //(counter >= 0)
       {
-        lcd.setCursor(17,2);
-        lcd.print(" ");
         lcd.setCursor(16,2);
         lcd.print(counter);
+      }
+      if(counter == 99)
+      {
+        lcd.setCursor(18,2);
+        lcd.print(" ");
+      }
+      if(counter == 9)
+      {
+        lcd.setCursor(17,2);
+        lcd.print(" ");
       }
       lcd.blink();
       lcd.setCursor(Cursor2,1);
@@ -1750,9 +1751,6 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         static int i {};
         newContact[i] = newDigit;
         i++;
-        printf("i = %i\n",i);
-        Serial.print("newContact# in now: ");
-        Serial.println(newContact);
         newDigit = 48; //ASCII '48' == 0
         if(i < 10)
         {
@@ -1774,9 +1772,6 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
           while(userInput4)
           {
             difference6 = millis() - timerStart;
-            printf("difference6: %lu\n", difference6);
-            printf("Millis(): %lu\n", millis());
-            printf("timerStart: %lu\n", timerStart);
             if (difference6 > threemintimer)
             {
               timerSwitch = false;
@@ -1785,10 +1780,10 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
               Cursor2 = 1;
               lcd.clear();
               lcd.setCursor(4,1);
-              lcd.print("Timer up");
+              lcd.print("TIME OUT");
               lcd.noBlink();
               delay(5000);
-              User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+              User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
               break;
             }
             if (Switch == false)
@@ -1887,15 +1882,13 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                   strcat(confirmContact,newContact);
                   confirmContact[13] = '&';
                   confirmContact[14] = '\0';
-                  Serial.print("confirmContact is: ");
-                  Serial.println(confirmContact);
                   Save_New_Contact(txtDOC, CONTACT);
                   strcpy(conToTotalArray,"To=");
                   loadContacts();
                   userInput4 = false;
                   userInput3 = false;
                   Cursor2 = 1;
-                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
                   sendSMS(urlHeaderArray, confirmContact, contactFromArray1, "Body=Contact%20Changed\"\r");
                   delay(20);
                 }
@@ -1914,8 +1907,9 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                 {
                   userInput4 = false;
                   userInput3 = false;
+                  timerSwitch == false;
                   Cursor2 = 1;
-                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
                 }
              }
           }
