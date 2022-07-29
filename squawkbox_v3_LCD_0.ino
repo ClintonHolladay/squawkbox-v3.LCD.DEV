@@ -1629,17 +1629,20 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
   while(userInput3)
   {
     static bool timerSwitch {false};
-    static const unsigned int threemintimer {180000};  
+    static const unsigned long threemintimer {180000};  
     static unsigned long difference6 {};
     static unsigned long timerStart {};
     if (timerSwitch == false)
     {
       timerStart = millis();
       timerSwitch = true;
+      printf("FIRST timerStart: %i\n", timerStart);
     }
     
     difference6 = millis() - timerStart;
-    
+    printf("difference6: %lu\n", difference6);
+    printf("Millis(): %lu\n", millis());
+    printf("timerStart: %lu\n", timerStart);
     if (difference6 > threemintimer)
     {
       timerSwitch = false;
@@ -1669,10 +1672,29 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
     
     if (difference7 > oneSecTimer)
     {
+      int counter{};
       Switch = false;
       lcd.noBlink();
-      lcd.setCursor(16,2);
-      lcd.print(180 - (difference6/1000));
+      counter = 180 - (difference6/1000);
+      if(counter >= 100)
+      {
+        lcd.setCursor(16,2);
+        lcd.print(counter);
+      }
+      else if(counter >= 10)
+      {
+        lcd.setCursor(18,2);
+        lcd.print(" ");
+        lcd.setCursor(16,2);
+        lcd.print(counter);
+      }
+      else //(counter >= 0)
+      {
+        lcd.setCursor(17,2);
+        lcd.print(" ");
+        lcd.setCursor(16,2);
+        lcd.print(counter);
+      }
       lcd.blink();
       lcd.setCursor(Cursor2,1);
     }
@@ -1751,6 +1773,60 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
           
           while(userInput4)
           {
+            difference6 = millis() - timerStart;
+            printf("difference6: %lu\n", difference6);
+            printf("Millis(): %lu\n", millis());
+            printf("timerStart: %lu\n", timerStart);
+            if (difference6 > threemintimer)
+            {
+              timerSwitch = false;
+              userInput4 = false;
+              userInput3 = false;
+              Cursor2 = 1;
+              lcd.clear();
+              lcd.setCursor(4,1);
+              lcd.print("Timer up");
+              lcd.noBlink();
+              delay(5000);
+              User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
+              break;
+            }
+            if (Switch == false)
+            {
+              Start = millis();
+              Switch = true;
+            }
+            
+            difference7 = millis() - Start;
+            
+            if (difference7 > oneSecTimer)
+            {
+              int counter{};
+              Switch = false;
+              //lcd.noBlink();
+              counter = 180 - (difference6/1000);
+              if(counter >= 100)
+              {
+                lcd.setCursor(16,2);
+                lcd.print(counter);
+              }
+              else if(counter >= 10)
+              {
+                lcd.setCursor(18,2);
+                lcd.print(" ");
+                lcd.setCursor(16,2);
+                lcd.print(counter);
+              }
+              else //(counter >= 0)
+              {
+                lcd.setCursor(17,2);
+                lcd.print(" ");
+                lcd.setCursor(16,2);
+                lcd.print(counter);
+              }
+              //lcd.blink();
+              //lcd.setCursor(Cursor2,1);
+            }
             static int selector{};
             n2 = digitalRead(encoderPinA);
             if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
