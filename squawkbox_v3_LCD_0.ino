@@ -79,6 +79,7 @@ static bool userInput2{};
 static bool userInput3{};
 static bool userInput4{};
 static bool faultHistory{};
+static bool stopRotaryEncoder{};
 
 static char contact1[11] {"1111111111"};
 static char contact2[11] {"2222222222"};
@@ -989,7 +990,7 @@ void readModbus() // getting FSG faults from the FSG
 
     switch (alarmRegister)
     {
-      case 1: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
+      case  1: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
         break;
       case 10: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code10%20PreIgnition%20Interlock%20Standby\"\r");
         break;
@@ -1217,6 +1218,7 @@ void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[],
     lcd.print(">");
     lcd.setCursor(0,0);
     lcd.print(CONTACTNAME);
+    lcd.print(" ");
     lcd.print(CONTACT);
     lcd.setCursor(2,1);
     lcd.print(SCREEN[1]);
@@ -1278,10 +1280,11 @@ void User_Input_Access_Menu()
     LCDdebounce = millis();
     LCDTimerSwitch = true;
   }
-  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
+  /*  Once userInput has been recieved and t he debounce time has passed we ! the userInput bool and turn 
    *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
   if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && !userInput && !userInput2)
   {
+    delay(50);
     userInput = true;
     LCDTimerSwitch = false;
     if(userInput)//this line not needed?
@@ -1412,37 +1415,37 @@ void User_Input_Access_Menu()
     }
     else if(userInput2 && Cursor == 1)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status, "CONTACT 1-");
+      User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status, "CONTACT-1");
       whichContactToEdit = 1;
       //Cursor = 0; // Allowed for saving the cursor position when EXITing the contact menus
     }
     else if(userInput2 && Cursor == 2)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact2, contact2Status, "CONTACT 2-");
+      User_Input_Contact_Screen(contactScreen, 1, contact2, contact2Status, "CONTACT-2");
       whichContactToEdit = 2;
       //Cursor = 0;
     }
     else if(userInput2 && Cursor == 3)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact3, contact3Status, "CONTACT 3-");
+      User_Input_Contact_Screen(contactScreen, 1, contact3, contact3Status, "CONTACT-3");
       whichContactToEdit = 3;
       //Cursor = 0;
     }
     else if(userInput2 && Cursor == 4)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact4, contact4Status, "CONTACT 4-");
+      User_Input_Contact_Screen(contactScreen, 1, contact4, contact4Status, "CONTACT-4");
       whichContactToEdit = 4;
       //Cursor = 0;
     }
     else if(userInput2 && Cursor == 5)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact5, contact5Status, "CONTACT 5-");
+      User_Input_Contact_Screen(contactScreen, 1, contact5, contact5Status, "CONTACT-5");
       whichContactToEdit = 5;
       //Cursor = 0;
     }
     else if(userInput2 && Cursor == 6)
     {
-      User_Input_Contact_Screen(contactScreen, 1, contact6, contact6Status, "CONTACT 6-");
+      User_Input_Contact_Screen(contactScreen, 1, contact6, contact6Status, "CONTACT-6");
       whichContactToEdit = 6;
       //Cursor = 0;
     }
@@ -1502,17 +1505,17 @@ void User_Input_Access_Menu()
   switch(whichContactToEdit)
   {
     case 0:break;
-    case 1: Contact_Edit_Menu(contact1, "to1.txt", contact1Address, contact1Status, "CONTACT 1-");
+    case 1: Contact_Edit_Menu(contact1, "to1.txt", contact1Address, contact1Status, "CONTACT-1");
     break;
-    case 2: Contact_Edit_Menu(contact2, "to2.txt", contact2Address, contact2Status, "CONTACT 2-");
+    case 2: Contact_Edit_Menu(contact2, "to2.txt", contact2Address, contact2Status, "CONTACT-2");
     break;
-    case 3: Contact_Edit_Menu(contact3, "to3.txt", contact3Address, contact3Status, "CONTACT 3-");
+    case 3: Contact_Edit_Menu(contact3, "to3.txt", contact3Address, contact3Status, "CONTACT-3");
     break;
-    case 4: Contact_Edit_Menu(contact4, "to4.txt", contact4Address, contact4Status, "CONTACT 4-");
+    case 4: Contact_Edit_Menu(contact4, "to4.txt", contact4Address, contact4Status, "CONTACT-4");
     break;
-    case 5: Contact_Edit_Menu(contact5, "to5.txt", contact5Address, contact5Status, "CONTACT 4-");
+    case 5: Contact_Edit_Menu(contact5, "to5.txt", contact5Address, contact5Status, "CONTACT-5");
     break;
-    case 6: Contact_Edit_Menu(contact6, "to6.txt", contact6Address, contact6Status, "CONTACT 6-");
+    case 6: Contact_Edit_Menu(contact6, "to6.txt", contact6Address, contact6Status, "CONTACT-6");
     break;
     default: break;
   } 
@@ -1580,9 +1583,8 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
     }
     if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
     { 
-      userInput3 = true;
       LCDTimerSwitch2 = false;
-      if(userInput3 && Cursor2 == 1)// TURN CONTACT ON/OFF
+      if(Cursor2 == 1)// TURN CONTACT ON/OFF
       {
         CONTACTSTATUS = !CONTACTSTATUS;
         EEPROM_Save_Contact_Status(ADDRESS, CONTACTSTATUS);
@@ -1597,11 +1599,10 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         {
           lcd.print("INACTIVE");
         }
-        userInput3 = false;
         strcpy(conToTotalArray,"To=");
         loadContacts();
       }
-      else if(userInput3 && Cursor2 == 2)//EDIT CONTACT
+      else if(Cursor2 == 2)//EDIT CONTACT
       {
         lcd.setCursor(0,2);
         lcd.print("ENTER NEW#");
@@ -1611,7 +1612,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         Contact_Edit_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
         userInput3 = true;
       }
-      else if(userInput3 && Cursor2 == 3)//EXIT CONTACT
+      else if(Cursor2 == 3)//EXIT CONTACT
       {
         userInput3 = false;
         userInput2 = false;
@@ -1627,6 +1628,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
  
   while(userInput3)
   {
+    static int i {};
     static bool timerSwitch {false};
     static const unsigned long threemintimer {180000};  
     static unsigned long difference6 {};
@@ -1638,12 +1640,14 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
     }
     
     difference6 = millis() - timerStart;
-    if (difference6 > threemintimer)
+    
+    if (difference6 > threemintimer)      //IF TIMER IS UP
     {
       timerSwitch = false;
       userInput4 = false;
       userInput3 = false;
       Cursor2 = 1;
+      i = 0;
       lcd.clear();
       lcd.setCursor(4,1);
       lcd.print("TIME OUT");
@@ -1700,7 +1704,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
       lcd.setCursor(Cursor2,1);
     }
     static char newContact[11];
-    //if(newContact[10] != '\0')newContact[10] = '\0';
+    if(newContact[10] != '\0')newContact[10] = '\0';
     static char newDigit{48};
     n2 = digitalRead(encoderPinA);
     if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
@@ -1748,7 +1752,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         {
           Cursor2 = 10;
         }
-        static int i {};
+        //static int i {}; THIS WAS REDECLARED HIGHER UP//////////////////////
         newContact[i] = newDigit;
         i++;
         newDigit = 48; //ASCII '48' == 0
@@ -1769,15 +1773,17 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
           lcd.setCursor(1,2);
           lcd.print(">");
           
-          while(userInput4)
+          while(userInput4)/////////////////////////USERINPUT4
           {
             difference6 = millis() - timerStart;
-            if (difference6 > threemintimer)
+            
+            if (difference6 > threemintimer)    //IF TIMER IS UP
             {
               timerSwitch = false;
               userInput4 = false;
               userInput3 = false;
               Cursor2 = 1;
+              i = 0;
               lcd.clear();
               lcd.setCursor(4,1);
               lcd.print("TIME OUT");
@@ -1794,11 +1800,10 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
             
             difference7 = millis() - Start;
             
-            if (difference7 > oneSecTimer)
+            if (difference7 > oneSecTimer)  // print the count down on the screen every sec
             {
               int counter{};
               Switch = false;
-              //lcd.noBlink();
               counter = 180 - (difference6/1000);
               if(counter >= 100)
               {
@@ -1823,60 +1828,71 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
               //lcd.setCursor(Cursor2,1);
             }
             static int selector{};
-            n2 = digitalRead(encoderPinA);
-            if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
+            if(!stopRotaryEncoder)
             {
-              if (digitalRead(encoderPinB) == LOW) 
+              n2 = digitalRead(encoderPinA);
+              if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
               {
-                //Counter Clockwise turn
-                selector--;
-                delay(20);
-                if(selector < 0)
+                if (digitalRead(encoderPinB) == LOW) 
                 {
-                  selector = 2;
+                  //Counter Clockwise turn
+                  selector--;
                   delay(20);
+                  if(selector < 0)
+                  {
+                    selector = 2;
+                    delay(20);
+                  }
+                } 
+                else //Clockwise turn
+                {
+                  selector++;
+                  delay(20);
+                  if(selector == 3)
+                  {
+                    selector = 0;
+                    delay(20);
+                  }
                 }
-              } 
-              else //Clockwise turn
-              {
-                selector++;
-                delay(20);
-                if(selector == 3)
+                switch(selector)
                 {
-                  selector = 0;
-                  delay(20);
+                  case 0: lcd.setCursor(0,2);lcd.print("-");lcd.setCursor(1,2);lcd.print(">");
+                          lcd.setCursor(0,3);lcd.print(" ");lcd.setCursor(1,3);lcd.print(" ");
+                          lcd.setCursor(8,3);lcd.print(" ");lcd.setCursor(9,3);lcd.print(" ");
+                  break;
+                  case 1: lcd.setCursor(0,2);lcd.print(" ");lcd.setCursor(1,2);lcd.print(" ");
+                          lcd.setCursor(0,3);lcd.print("-");lcd.setCursor(1,3);lcd.print(">");
+                          lcd.setCursor(8,3);lcd.print(" ");lcd.setCursor(9,3);lcd.print(" ");
+                  break;
+                  case 2: lcd.setCursor(0,2);lcd.print(" ");lcd.setCursor(1,2);lcd.print(" ");
+                          lcd.setCursor(0,3);lcd.print(" ");lcd.setCursor(1,3);lcd.print(" ");
+                          lcd.setCursor(8,3);lcd.print("-");lcd.setCursor(9,3);lcd.print(">");
+                  break;
+                  default: 
+                  break; 
                 }
               }
-              switch(selector)
-              {
-                case 0: lcd.setCursor(0,2);lcd.print("-");lcd.setCursor(1,2);lcd.print(">");
-                        lcd.setCursor(0,3);lcd.print(" ");lcd.setCursor(1,3);lcd.print(" ");
-                        lcd.setCursor(8,3);lcd.print(" ");lcd.setCursor(9,3);lcd.print(" ");
-                break;
-                case 1: lcd.setCursor(0,2);lcd.print(" ");lcd.setCursor(1,2);lcd.print(" ");
-                        lcd.setCursor(0,3);lcd.print("-");lcd.setCursor(1,3);lcd.print(">");
-                        lcd.setCursor(8,3);lcd.print(" ");lcd.setCursor(9,3);lcd.print(" ");
-                break;
-                case 2: lcd.setCursor(0,2);lcd.print(" ");lcd.setCursor(1,2);lcd.print(" ");
-                        lcd.setCursor(0,3);lcd.print(" ");lcd.setCursor(1,3);lcd.print(" ");
-                        lcd.setCursor(8,3);lcd.print("-");lcd.setCursor(9,3);lcd.print(">");
-                break;
-                default: 
-                break; 
-              }
+              encoderPinALast2 = n2;
             }
-            encoderPinALast2 = n2;
             
             if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)
             {
+              stopRotaryEncoder = true;
               LCDdebounce2 = millis();
               LCDTimerSwitch2 = true;
             }
             if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
             { 
+              stopRotaryEncoder = false;
               LCDTimerSwitch2 = false;
                 if(selector == 0)// SAVE NEW CONTACT 
                 {
+                  lcd.clear();
+                  lcd.setCursor(6,1);
+                  lcd.print("SAVING...");
+                  lcd.setCursor(5,2);
+                  lcd.print("PLEASE WAIT");
+                  timerSwitch = false;
                   char confirmContact[15]{"To="};
                   strcpy(CONTACT,newContact);
                   strcat(confirmContact,newContact);
@@ -1888,8 +1904,8 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                   userInput4 = false;
                   userInput3 = false;
                   Cursor2 = 1;
-                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
                   sendSMS(urlHeaderArray, confirmContact, contactFromArray1, "Body=Contact%20Changed\"\r");
+                  User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
                   delay(20);
                 }
                 else if(selector == 1)//REDO NEW CONTACT
@@ -1907,7 +1923,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                 {
                   userInput4 = false;
                   userInput3 = false;
-                  timerSwitch == false;
+                  timerSwitch = false;
                   Cursor2 = 1;
                   User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
                 }
