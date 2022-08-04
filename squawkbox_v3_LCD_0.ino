@@ -1830,6 +1830,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
             static int selector{};
             if(!stopRotaryEncoder)
             {
+              delay(50);
               n2 = digitalRead(encoderPinA);
               if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
               {
@@ -1841,7 +1842,6 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                   if(selector < 0)
                   {
                     selector = 2;
-                    delay(20);
                   }
                 } 
                 else //Clockwise turn
@@ -1851,7 +1851,6 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                   if(selector == 3)
                   {
                     selector = 0;
-                    delay(20);
                   }
                 }
                 switch(selector)
