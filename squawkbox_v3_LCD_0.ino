@@ -1,5 +1,4 @@
 // TODO:
-// Change the Serial.print() to printf().
 // Add functions for Pump amps() / Aw Na box() / any others???
 // Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
 // Display blowdown reminder after 48 hours of no PLWCO.
@@ -153,13 +152,13 @@ void setup()
   printf("This is squawkbox V3.LCD.0 sketch.\n");
   if (! rtc.begin()) 
    {
-     Serial.println("Couldn't find RTC");
+     printf("Couldn't find RTC.\n");
      Serial.flush();
      abort();
    }
   if (! rtc.initialized() || rtc.lostPower()) 
    {
-     Serial.println("RTC is NOT initialized, let's set the time!");
+     printf("RTC is NOT initialized, let's set the time!\n");
      // When time needs to be set on a new device, or after a power loss, the
      // following line sets the RTC to the date & time this sketch was compiled
                  // Note: allow 2 seconds after inserting battery or applying external power
@@ -209,9 +208,9 @@ void setup()
   boot_SD();
   EEPROM_Prefill();
   loadContacts(); //run the SD card function.
-  Serial.println(F("Contacts Loaded.  Booting SIM module.  Initiating wakeup sequence..."));
+  printf("Contacts Loaded.  Booting SIM module.  Initiating wakeup sequence...\n");
   initiateSim();
-  Serial.println(F("Setup() Function complete. Entering Main Loop() Function"));
+  printf("Setup() Function complete. Entering Main Loop() Function.\n");
   lcd.clear();
   lcd.noBacklight();
 }
@@ -235,13 +234,6 @@ void loop()
   SMSRequest();
   User_Input_Access_Menu();
   //printf("%u\n",millis());
-//  printf("Bools\n");
-//  printf("bool is: %i.\n",EEPROM.read(contact1Address));
-//  printf("bool is: %i.\n",EEPROM.read(contact2Address));
-//  printf("bool is: %i.\n",EEPROM.read(contact3Address));
-//  printf("bool is: %i.\n",EEPROM.read(contact4Address));
-//  printf("bool is: %i.\n",EEPROM.read(contact5Address));
-//  printf("bool is: %i.\n",EEPROM.read(contact6Address));
 }
 
 
@@ -487,16 +479,16 @@ void primary_LW()
     {
       alarmTime = millis(); 
       alarmSwitch = true;
-      Serial.println("alarmSwitch is true");
+      printf("alarmSwitch is true\n");
     }
     difference = millis() - alarmTime;
 
     if ( difference >= debounceInterval)
     {
       LCDwaiting();
-      Serial.println(F("Primary low water.  Sending message"));
+      printf("Primary low water.  Sending message.\n");
       sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, LWbody);
-      Serial.println(F("message sent or simulated"));
+      printf("message sent or simulated.\n");
       EEPROMalarmInput(PLWCO);
       printf("EEPROM() function Primary Low Water complete.\n");
       Data_Logger(PrimaryString);
@@ -504,7 +496,7 @@ void primary_LW()
       PLWCOSent = 1;
       alarmSwitch = false;
     }
-    else Serial.println(difference); 
+    else printf("%ul\n",difference); 
   }
   else
   {
@@ -531,16 +523,16 @@ void secondary_LW()
     {
       alarmTime2 = millis();
       alarmSwitch2 = true;
-      Serial.println(F("alarmSwitch2 is true"));
+      printf("alarmSwitch2 is true.\n");
     }
     difference2 = millis() - alarmTime2;
 
     if ( difference2 >= debounceInterval)
     {
       LCDwaiting();
-      Serial.println(F("Secondary low water.  Sending message."));
+      printf("Secondary low water.  Sending message.\n");
       sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, LW2body);
-      Serial.println(F("message sent or simulated"));
+      printf("message sent or simulated.\n");
       EEPROMalarmInput(SLWCO);
       printf("EEPROM() function 2nd Low Water complete.\n");
       Data_Logger(SecondaryString);
@@ -550,7 +542,7 @@ void secondary_LW()
     }
     if (difference2 < debounceInterval)
     {
-      Serial.println(difference2);
+      printf("%ul\n",difference2);
     }
   }
   else
@@ -576,7 +568,7 @@ void Honeywell_alarm()
     {
       alarmTime3 = millis();
       alarmSwitch3 = true;
-      Serial.println("HW alarmSwitch is true");
+      printf("HW alarmSwitch is true.\n");
     }
     
     difference3 = millis() - alarmTime3;
@@ -584,13 +576,13 @@ void Honeywell_alarm()
     if ( difference3 >= debounceInterval)
     {
       LCDwaiting();
-      Serial.println(F("sending alarm message"));
-      Serial.println(F("about to enter modbus reading function..."));
+      printf("sending alarm message.\n");
+      printf("about to enter modbus reading function....\n");
       sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, BCbody);
       delay(100);
-      Serial.println(F("about to enter modbus reading function..."));
+      printf("about to enter modbus reading function....\n");
       readModbus();
-      Serial.println(F("message sent or simulated"));
+      printf("message sent or simulated.\n");
       EEPROMalarmInput(FSGalarm);
       printf("EEPROM() function FSG Alarm complete.\n");
       Data_Logger(AlarmString);
@@ -600,7 +592,7 @@ void Honeywell_alarm()
     }
     if (difference3 < debounceInterval)
     {
-      Serial.println(difference3);
+      printf("%ul\n",difference3);
     }
   }
   else
@@ -628,16 +620,16 @@ void HLPC()
     {
       alarmTime4 = millis();
       alarmSwitch4 = true;
-      Serial.println("alarmSwitch is true");
+      printf("AlarmSwitch is true.\n");
     }
     difference4 = millis() - alarmTime4;
 
     if ( difference4 >= debounceInterval)
     {
       LCDwaiting();
-      Serial.println("Sending HPLC alarm message");
+      printf("Sending HPLC alarm message.\n");
       sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, HLPCbody);
-      Serial.println(F("message sent or simulated"));
+      printf("message sent or simulated.\n");
       EEPROMalarmInput(HighLimit);
       printf("EEPROM() function High Limit complete.\n");
       Data_Logger(hlpcString);
@@ -647,7 +639,7 @@ void HLPC()
     }
     if (difference4 < debounceInterval)
     {
-      Serial.println(difference4);
+      printf("%ul\n",difference4);
     }
   }
   else
@@ -735,31 +727,31 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
     if (incomingChar == 'C') 
     {
       delay(100);
-      Serial.print(incomingChar);
+      printf("%c\n",incomingChar);
       incomingChar = Serial1.read();
       if (incomingChar == 'H') 
       {
         delay(100);
-        Serial.print(incomingChar);
+        printf("%c\n", incomingChar);
         incomingChar = Serial1.read();
         if (incomingChar == 'E') 
         {
           delay(100);
-          Serial.print(incomingChar);
+          printf("%c\n",incomingChar);
           incomingChar = Serial1.read();
           if (incomingChar == 'C') 
           {
             delay(100);
-            Serial.print(incomingChar);
+            printf("%c\n",incomingChar);
             incomingChar = Serial1.read();
             if (incomingChar == 'K') 
             {
               delay(100);
-              Serial.print(incomingChar);
-              Serial.println(F("GOOD CHECK. SMS SYSTEMS ONLINE"));
-              Serial.println(F("SENDING CHECK VERIFICATION MESSAGE")) ;
+              printf("%c\n",incomingChar);
+              printf("GOOD CHECK. SMS SYSTEMS ONLINE.\n");
+              printf("SENDING CHECK VERIFICATION MESSAGE.\n") ;
               sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, CHECKbody);
-              Serial.println("verification message sent");
+              printf("Verification message sent.\n");
               Serial1.print("AT+CMGD=0,4\r");
               delay(100);
             }
@@ -854,7 +846,7 @@ void boot_SD() //see if the card is present and can be initialized
 void loadContacts()
 {
   fill_from_SD("from1.txt", contactFromArray1);// from # doesnt just have digits in it...???
-  Serial.print("From number is: ");
+  printf("From number is: ");
   Serial.println(contactFromArray1);
   fill_from_SD("to1.txt", contact1);
   if (contact1[0] > 0 && contact1Status) // maybe do if (contact1[0] > 48 && contact1[0] < 58 && contact1Status)
@@ -954,13 +946,13 @@ void fill_from_SD(char file_name[], char CONTACT[])
     myFile.close();
     CONTACT[i] = '\0'; //may not be needed
     }
-    Serial.print("CONTACT is: ");
+    printf("CONTACT is: ");
     Serial.println(CONTACT);
   }
   else
   {
     // if the file didn't open, print an error:
-    Serial.println("***ERROR opening SD contactTo file.***");
+    printf("***ERROR opening SD contactTo file.***\n");
   }
 }
 
@@ -978,14 +970,14 @@ void postTransmission() // user designated action required by the MODBUS library
 
 void readModbus() // getting FSG faults from the FSG
 {
-  Serial.println("In the readModbus() function now");
+  printf("In the readModbus() function now.\n");
   delay(300);
   uint16_t result = node.readHoldingRegisters (0x0000, 1);
 
   if (result == node.ku8MBSuccess) // ku8MBSuccess == 0x00
   {
     int alarmRegister = node.getResponseBuffer(result);
-    Serial.print("Register response:  ");
+    printf("Register response:  ");
     Serial.println(alarmRegister);
 
     switch (alarmRegister)
@@ -1289,11 +1281,11 @@ void User_Input_Access_Menu()
     LCDTimerSwitch = false;
     if(userInput)//this line not needed?
     {
-      Serial.println("User Input Recieved ON");
+      printf("User Input Recieved ON.\n");
       Cursor = 0;//this line not needed?
       User_Input_Main_Screen(Cursor);//change to take no arguments and default cursor to 0 in the body of the function?
     }
-    else Serial.println ("User Input Recieved OFF");//this line not needed?
+    else printf("User Input Recieved OFF.\n");//this line not needed?
   }
   /*  The userInput bool is used as a latch so that the LCD screen continues to display what the user wants until the pushButton 
    *  is activated again. When the above timer algorithm has been satisfied the squawk will begin tracking rotational rotary 
@@ -1773,7 +1765,11 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
           lcd.setCursor(1,2);
           lcd.print(">");
           
-          while(userInput4)/////////////////////////USERINPUT4
+    //=====================================================================================//          
+    //============================Saving New Contact Menu==================================//  
+    //=====================================================================================//  
+    
+          while(userInput4)
           {
             difference6 = millis() - timerStart;
             
@@ -1838,12 +1834,12 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                 {
                   //Counter Clockwise turn
                   selector--;
-                  delay(20);
-                  if(selector < 0)
-                  {
-                    selector = 2;
-                  }
-                } 
+                  delay(20);                          //====================//
+                  if(selector < 0)                    //->Fault History     //
+                  {                                   //->Fault History     //
+                    selector = 2;                     //->SAVE     TIME 180 //
+                  }                                   //->REDO     EXIT     //
+                }                                     //====================//
                 else //Clockwise turn
                 {
                   selector++;
