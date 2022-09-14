@@ -1,20 +1,29 @@
 AB3D Embedded Software Testing / QA Standards
 
-Testing should be designed to be destructive, that is, to prove the program doesn’t work!
+- Testing should be designed to be destructive, that is, to prove the program doesn’t work!
 
-All code that complies and is to be either submitted for permanent GitHub commit or used in 
-a hardware testing application is to be ran through CPPCheck, and corrected accordingly. 
+Code:
+- All code that complies and is to be either submitted for GitHub commit or used in a hardware 
+  testing application is to be ran through CPPCheck, and corrected accordingly. 
 
-By placing a trace statement, such as a printf( ), at the beginning of every block, you can 
-track when the block—and by implication all the statements in the block—are executed.
+- All dev code that is to be used in a hardware testing application is to have its respective 
+  microcontroller's SRAM analyzed at each level of "embedded" or sub function that is called. 
+  This is currently accomplished using the "MemoryFree-Master" library. This will help to eliminate 
+  any memory overflows / stack crashes. A 20% tolerance is to be maintained. If available SRAM 
+  goes below this, then memory allocation will be further developed before proceeding with testing. 
 
-All prinf() calls are to be #define(d) out of (or completely removed from) production code. 
+- By placing a trace statement, such as a printf( ), at the beginning of every block, you can 
+  track when the block—and by implication all the statements in the block—are executed.
+
+- All prinf() calls are to be #define(d) out of (or completely removed from) production code. 
+
+=================================================================================================
 
 Functional Testing “Black Box”: Because black-box tests depend only on the program requirements 
 and its I/O behavior, they can be developed as soon as the requirements are complete. This allows 
 black-box test cases to be developed in parallel with the rest of the system design.
 
-• Stress tests: Tests that intentionally overload input channels, memory buffers, SD card Module, 
+• Stress tests: Tests that intentionally overload input channels, SD card Module, 
   memory management systems, and so on.
 • Boundary value tests: Inputs that represent “boundaries” within a particular range (for example, 
   largest and smallest integers together with − 1, 0, + 1, for an integer input) and input values 
@@ -33,3 +42,41 @@ the source code handy.
   branch (both the true and false path) to be executed at least once.
 • Condition coverage: Test cases chosen to force each condition (term) in a
   decision to take on all possible logic values.
+  
+=================================================================================================
+
+Hardware:
+- A1 Cleaners A1_V1_0 installed AUG 2021: 
+   Boiler is currently running at a normal boiler operating room temp of >140F for 5 days a week. 
+   
+   *Current environmental failures: 1. (Teensy 4.1 for monitoring temp / humidity) - unrelated to 
+                                       SquawkBox performance. 
+   *Current hardware failures: 1. (RS-485 module) - manufacturer defect. 
+   *Current software failures: 1. (Heap Fragmentaion causing stack crash) - Use of C style strings 
+                                  instead of String Class corrected issue. This presented as abnormal / random 
+                                  behavior after an undertermined amount of time. 
+   
+   Initial concerns to address:
+   - Microcontroller input wire shielding (Interference caused by close proximity to 120VAC -> 5VDC transformers)
+   - DIN rail mounting method needs to be 3D printed in PETG. 
+   - Electrical panel needs to be 2x-3x larger. 
+   - Standoffs will be a requirement for mounting panels directly onto a boiler. 
+   - Larger / longer antenne needed to help eliminate building 4G LTE interference. 
+   - Consider an external Squawk RESET button.
+   - Consider using INPUT_PULLUP and pulling contactors to ground instead of using 120VAC transformers to input 5VDC to board. 
+
+- MayDay Brewery breadboard installed AUG 2019:
+   Boiler is currently running 5 days a week.
+   
+   *Current environmental failures: 0. 
+   *Current hardware failures: 2. (SIM900 Module) - manufacturer defect.
+                                  (SIM7000A 4G Module) - manufacturer defect. Start using DFRobot modules instead. 
+   *Current software failures: 2. (HLPC()) - Edit to the logic corrected issue.
+                                  (MODBus()) - Edit to the logic corrected issue.
+   
+   Initial concerns to address:
+   - PCB design solution needs to be found. 
+   - Additional functionality required to be a final solution.
+   - DIN rail mounting solution needs to be found. 
+   - Needs a dedicated Electrical panel. 
+   - Antenne needed to help eliminate building phone signal interference.
