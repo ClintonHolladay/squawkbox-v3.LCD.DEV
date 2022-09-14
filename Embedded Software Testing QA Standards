@@ -3,6 +3,8 @@ AB3D Embedded Software Testing / QA Standards
 - Testing should be designed to be destructive, that is, to prove the program doesn’t work!
 
 Code:
+- AVOID the String class as it will lead to excessive dynamic memory allocation, Heap fragmentaion, 
+  and random / abnormal behavior that is hard to diagnose.
 - All code that complies and is to be either submitted for GitHub commit or used in a hardware 
   testing application is to be ran through CPPCheck, and corrected accordingly. 
 
@@ -10,12 +12,18 @@ Code:
   microcontroller's SRAM analyzed at each level of "embedded" or sub function that is called. 
   This is currently accomplished using the "MemoryFree-Master" library. This will help to eliminate 
   any memory overflows / stack crashes. A 20% tolerance is to be maintained. If available SRAM 
-  goes below this, then memory allocation will be further developed before proceeding with testing. 
+  goes below this, then memory allocation will be further developed and performance modifications 
+  made before proceeding with testing. 
 
 - By placing a trace statement, such as a printf( ), at the beginning of every block, you can 
   track when the block—and by implication all the statements in the block—are executed.
 
 - All prinf() calls are to be #define(d) out of (or completely removed from) production code. 
+
+- Main loop() is to be clocked and the time documented after any addition to the code. This is to check 
+  the responsiveness to both the boiler and the user. If needed individual funtion() entry-point and 
+  exit-point time measurements can be taken and averaged to determine the time of execution of a 
+  particular trouble funtion. 
 
 =================================================================================================
 
@@ -24,14 +32,20 @@ and its I/O behavior, they can be developed as soon as the requirements are comp
 black-box test cases to be developed in parallel with the rest of the system design.
 
 • Stress tests: Tests that intentionally overload input channels, SD card Module, 
-  memory management systems, and so on.
+  memory management systems, SIM Module, and so on.
 • Boundary value tests: Inputs that represent “boundaries” within a particular range (for example, 
   largest and smallest integers together with − 1, 0, + 1, for an integer input) and input values 
   that should cause the output to transition across a similar boundary in the output range.
 • Exception tests: Tests that should trigger a failure mode or exception mode.
 • Random tests: Generally, the least productive form of testing but still widely used to evaluate 
   the robustness of user-interface code.
-• Performance tests: Because performance expectations are part of the product requirement.
+• Performance tests: Does it do what it is designed to do under normal conditions? 
+  - Test ALL alarms to ensure the proper messages gets sent.
+  - Access ALL UI screens and sub screens.
+  - Access ALL parameters within these screens and sub screens.
+  - Ensure ALL default inputs are installed.
+  - Inspect data logging to ensure functionality and formatting. 
+  - Inspect RTC time initialization. 
 
 Coverage Tests “White box”: Coverage tests are devised with full knowledge of how the software 
 is implemented, that is, with permission to “look inside the box.” White-box tests are designed with 
@@ -65,7 +79,7 @@ Hardware:
    - Consider an external Squawk RESET button.
    - Consider using INPUT_PULLUP and pulling contactors to ground instead of using 120VAC transformers to input 5VDC to board. 
 
-- MayDay Brewery breadboard installed AUG 2019:
+- MayDay Brewery breadboard installed AUG 2019 / depricated NOV 2021:
    Boiler is currently running 5 days a week.
    
    *Current environmental failures: 0. 
