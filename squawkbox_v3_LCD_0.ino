@@ -1,3 +1,5 @@
+// GNU GENERAL PUBLIC LICENSE Version 2, June 1991
+
 // TODO:
 // Add functions for Pump amps() / Aw Na box() / any others???
 // Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
@@ -7,17 +9,20 @@
 // Add function to send a Flame signal text message.
 // Prompt when all contacts are inactive.
 
-#include <SD.h>
-#include <ModbusMaster.h>
-#include <LiquidCrystal_I2C.h>
-#include <EEPROM.h>
-#include <RTClib.h>
-#include <LibPrintf.h>
+                               // Library licensing information  //
+//#include <Arduino.h>         // GNU Lesser General Public    // We are not required to directly include this library. 
+#include <SD.h>                // GNU General Public License V3
+#include <ModbusMaster.h>      // Apache License Version 2.0
+#include <LiquidCrystal_I2C.h> // NOT posted in the documentation
+#include <EEPROM.h>            // GNU Lesser General Public
+#include <RTClib.h>            // MIT License
+#include <LibPrintf.h>         // MIT License
+#include <MemoryFree.h>       // GNU GENERAL PUBLIC LICENSE V2
 
 //#define PRINTF_DISABLE_ALL // Not working as advertised in the LibPrintf.h GutHub
-//#define printf(x...) // Deletes ALL prinf() functions in order to make the production code faster/smoother. 
+//#define printf(x...) // Deletes ALL prinf() functions in order to save SRAM amd make the production code faster/smoother. 
 
-//User activated contact # ON/OFF definitons
+//Customer activated contact # ON/OFF definitons
 #define ACTIVE 1
 #define INACTIVE 0
 
@@ -49,30 +54,32 @@ static int Cursor{};//Making this a global allowed for saving the cursor positio
 const int debounceInterval {3000};//NEEDS TO BE MADE CHANGEABLE ON SD CARD
                                   // to prevent false alarms from electrical noise and also prevents repeat messages from bouncing PLWCOs.   
                                   // Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
-const char PrimaryString[] {"Primary Low Water"};     // ====================================//
-const char SecondaryString[] {"Secondary Low Water"}; // alarm text printed to the LCD screen//
-const char hlpcString[] {"High Limit"};               // alarm text printed to the LCD screen//
-const char AlarmString[] {"FSG Alarm"};               // ====================================//
-const char DefaultString[] {"Open Fault Memory"};     // ====================================//
-// message to be sent
-const char SetCombody[] = "Body=Setup%20Complete\"\r";
-const char LWbody[] = "Body=Low%20Water\"\r";
-const char LW2body[] = "Body=Low%20Water2\"\r";
-const char REPbody[] = "Body=Routine%20Timer\"\r";
-const char HLPCbody[] = "Body=High%20Pressure%20Alarm\"\r";
-const char CHECKbody[] = "Body=Good%20Check\"\r";
-const char BCbody[] = "Body=Boiler%20Down\"\r";
+const char PrimaryString[] {"Primary Low Water"};     //====================================//
+const char SecondaryString[] {"Secondary Low Water"}; //====================================//
+const char hlpcString[] {"High Limit"};               //alarm text printed to the LCD screen//
+const char AlarmString[] {"FSG Alarm"};               //====================================//
+const char DefaultString[] {"Open Fault Memory"};     //====================================//
+// message to be sent from the squawk to the customer
+// const char SetCombody[] = "Body=Setup%20Complete\"\r";
+// const char LWbody[] = "Body=Primary%20Low%20Water\"\r";
+// const char LW2body[] = "Body=Secondary%20Low%20Water\"\r";
+// const char REPbody[] = "Body=Routine%20Timer\"\r";
+// const char HLPCbody[] = "Body=High%20Pressure%20Alarm\"\r";
+// const char CHECKbody[] = "Body=Good%20Check\"\r";
+// const char BCbody[] = "Body=Boiler%20Down\"\r";
+
 // variables indicating whether or not an alarm message has been sent or not
 static bool PLWCOSent{};
 static bool SLWCOSent{};
 static bool HWAlarmSent{};
 static bool hlpcSent{};
 
-static char urlHeaderArray[100]; // Twilio end point url (twilio might changes this!)
+static char urlHeaderArray[100]; // Twilio end point url (twilio might change this!)
 // holds the phone number to recieve text messages
 static char contactFromArray1[25];
 static char conToTotalArray[60] {"To="};
 
+// Bools used to maintain LCD screen until the user presses the button to go to the next screen
 static bool userInput{};
 static bool userInput2{};
 static bool userInput3{};
@@ -80,6 +87,7 @@ static bool userInput4{};
 static bool faultHistory{};
 static bool stopRotaryEncoder{};
 
+// Customer phone numbers
 static char contact1[11] {"1111111111"};
 static char contact2[11] {"2222222222"};
 static char contact3[11] {"3333333333"};
@@ -87,6 +95,7 @@ static char contact4[11] {"4444444444"};
 static char contact5[11] {"5555555555"};
 static char contact6[11] {"6666666666"};
 
+// Customer phone number activation bools
 static bool contact1Status {INACTIVE}; 
 static bool contact2Status {INACTIVE};
 static bool contact3Status {INACTIVE};
@@ -94,13 +103,13 @@ static bool contact4Status {INACTIVE};
 static bool contact5Status {INACTIVE};
 static bool contact6Status {INACTIVE};
 
-//LCD Menu Logic
+//LCD Menu Names
 const char* MainScreen[8] = {"Fault History","Contact 1","Contact 2","Contact 3","Contact 4","Contact 5","Contact 6","EXIT"};
 const char* contactScreen[6] = {"CURRENT#","STATUS: ","EDIT#","EXIT","SAVE#","REDO#"};
 
-//=============User defined Data Types===================//
+//=============Custom Data Types===================//
 
-struct alarmVariable
+struct alarmVariable // Used to smoothly pull EEPROM fault history to the LCD display
 {
    int alarm;
    int year;
@@ -111,22 +120,7 @@ struct alarmVariable
    byte second; 
 };
 
-//EEPROM variables
-const int numberOfSavedFaults {400};
-const int eepromAlarmDataSize = sizeof(alarmVariable); 
-static int EEPROMinputCounter{};
-const uint8_t EEPROMInitializationKey {69};
-const int EEPROMInitializationAddress {4020};
-const int EEPROMinputCounterAddress {4000};
-const int EEPROMLastFaultAddress {3600};
-static int contact1Address {3801};
-static int contact2Address {3802};
-static int contact3Address {3803};
-static int contact4Address {3804};
-static int contact5Address {3805};
-static int contact6Address {3806};
-
-enum EEPROMAlarmCode 
+enum EEPROMAlarmCode // Used to encode which alarm is to be saved into the EEPROM
 {
   PLWCO = 1, 
   SLWCO, 
@@ -134,11 +128,28 @@ enum EEPROMAlarmCode
   HighLimit
 };
 
+//EEPROM variables
+const int numberOfSavedFaults {400};
+const int eepromAlarmDataSize = sizeof(alarmVariable); 
+static int EEPROMinputCounter{};
+const uint8_t EEPROMInitializationKey {69};
+
+//EEPROM addresses 0 - 4096 (8 bits each)
+const int EEPROMInitializationAddress {4020};
+const int EEPROMinputCounterAddress {4000};
+const int EEPROMLastFaultAddress {3600};
+const int contact1Address {3801};
+const int contact2Address {3802};
+const int contact3Address {3803};
+const int contact4Address {3804};
+const int contact5Address {3805};
+const int contact6Address {3806};
+
 //================INSTANTIATION================//
 
 ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
-File myFile; // consider DateTime now = rtc.now() instansiation only once in the loop??? Heap memory concerns??
+File myFile; // consider DateTime now = rtc.now() instansiation only once in the loop??? Heap frag concerns??
 RTC_PCF8523 rtc;
 
 //=======================================================================//
@@ -213,6 +224,8 @@ void setup()
   printf("Setup() Function complete. Entering Main Loop() Function.\n");
   lcd.clear();
   lcd.noBacklight();
+  Serial.print(F("Free RAM = "));
+  Serial.println(freeMemory());
 }
 
 
@@ -487,7 +500,7 @@ void primary_LW()
     {
       LCDwaiting();
       printf("Primary low water.  Sending message.\n");
-      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, LWbody);
+      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Primary%20Low%20Water\"\r");
       printf("message sent or simulated.\n");
       EEPROMalarmInput(PLWCO);
       printf("EEPROM() function Primary Low Water complete.\n");
@@ -496,7 +509,7 @@ void primary_LW()
       PLWCOSent = 1;
       alarmSwitch = false;
     }
-    else printf("%ul\n",difference); 
+    else printf("%lu\n",difference); 
   }
   else
   {
@@ -531,7 +544,7 @@ void secondary_LW()
     {
       LCDwaiting();
       printf("Secondary low water.  Sending message.\n");
-      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, LW2body);
+      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Secondary%20Low%20Water\"\r");
       printf("message sent or simulated.\n");
       EEPROMalarmInput(SLWCO);
       printf("EEPROM() function 2nd Low Water complete.\n");
@@ -542,7 +555,7 @@ void secondary_LW()
     }
     if (difference2 < debounceInterval)
     {
-      printf("%ul\n",difference2);
+      printf("%lu\n",difference2);
     }
   }
   else
@@ -578,7 +591,7 @@ void Honeywell_alarm()
       LCDwaiting();
       printf("sending alarm message.\n");
       printf("about to enter modbus reading function....\n");
-      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, BCbody);
+      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Boiler%20Down\"\r");
       delay(100);
       printf("about to enter modbus reading function....\n");
       readModbus();
@@ -592,7 +605,7 @@ void Honeywell_alarm()
     }
     if (difference3 < debounceInterval)
     {
-      printf("%ul\n",difference3);
+      printf("%lu\n",difference3);
     }
   }
   else
@@ -628,7 +641,7 @@ void HLPC()
     {
       LCDwaiting();
       printf("Sending HPLC alarm message.\n");
-      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, HLPCbody);
+      sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=High%20Pressure%20Alarm\"\r");
       printf("message sent or simulated.\n");
       EEPROMalarmInput(HighLimit);
       printf("EEPROM() function High Limit complete.\n");
@@ -639,7 +652,7 @@ void HLPC()
     }
     if (difference4 < debounceInterval)
     {
-      printf("%ul\n",difference4);
+      printf("%lu\n",difference4);
     }
   }
   else
@@ -684,7 +697,7 @@ void sendSMS(char URL[], char to[], char from[], char body[])//SIM7000A module
   //getResponse();
 }
 
-void getResponse() // serial monitor printing for troubleshooting
+void getResponse() // serial monitor printing for troubleshooting REMOVE FROM PRODUCTION CODE
 {
 unsigned char data {};
   while (Serial1.available())
@@ -712,7 +725,7 @@ void timedmsg() // daily timer message to ensure Squawk is still operational
 
   if (difference5 >= dailytimer)
   {
-    sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, REPbody);
+    sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Routine%20Timer\"\r");
     msgswitch = false;
   }
 }
@@ -750,7 +763,7 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
               printf("%c\n",incomingChar);
               printf("GOOD CHECK. SMS SYSTEMS ONLINE.\n");
               printf("SENDING CHECK VERIFICATION MESSAGE.\n") ;
-              sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, CHECKbody);
+              sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Good%20Check\"\r");
               printf("Verification message sent.\n");
               Serial1.print("AT+CMGD=0,4\r");
               delay(100);
@@ -765,7 +778,7 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
 void Data_Logger(const char FAULT[])//add in cycle count and run time hours?
 {
   DateTime now = rtc.now();
-  File myFile = SD.open("DataLog.txt", FILE_WRITE);
+  myFile = SD.open("DataLog.txt", FILE_WRITE);
   if (myFile) 
   {
     myFile.print(FAULT);
@@ -933,7 +946,7 @@ void fill_from_SD(char file_name[], char CONTACT[])
   myFile = SD.open(file_name, FILE_WRITE);
   if (myFile) 
   {
-    int i{};
+    int i{}; // reconsider this naming???
     myFile.seek(0);
     if(myFile.available())
     {
@@ -1093,7 +1106,7 @@ void initiateSim()
   Serial1.print("AT+CNMI=2,2,0,0,0\r"); //
   delay(100);
   //getResponse();
-  sendSMS(urlHeaderArray, contactFromArray1, conToTotalArray, SetCombody);
+  sendSMS(urlHeaderArray, contactFromArray1, conToTotalArray, "Body=Setup%20Complete\"\r");
   delay(2000);
   Serial.println(F("initiateSim() complete."));
 }
@@ -1277,7 +1290,7 @@ void User_Input_Access_Menu()
   if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && !userInput && !userInput2)
   {
     delay(50);
-    userInput = true;
+    userInput = true; // CWE: 571 Assignment 'userInput3=true', assigned value is 1
     LCDTimerSwitch = false;
     if(userInput)//this line not needed?
     {
@@ -1400,48 +1413,48 @@ void User_Input_Access_Menu()
   { 
     userInput2 = true;
     LCDTimerSwitch = false;
-    if(userInput2 && Cursor == 0)
+    if(userInput2 && Cursor == 0) // CWE: 571 Condition 'userInput2' is always true
     {
       faultHistory = true;
       EEPROMalarmPrint(Cursor, 0);
     }
-    else if(userInput2 && Cursor == 1)
+    else if(userInput2 && Cursor == 1) // CWE: 571 Condition 'userInput2' is always true
     {
       User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status, "CONTACT-1");
       whichContactToEdit = 1;
       //Cursor = 0; // Allowed for saving the cursor position when EXITing the contact menus
     }
-    else if(userInput2 && Cursor == 2)
+    else if(userInput2 && Cursor == 2) // CWE: 571 Condition 'userInput2' is always true
     {
       User_Input_Contact_Screen(contactScreen, 1, contact2, contact2Status, "CONTACT-2");
       whichContactToEdit = 2;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 3)
+    else if(userInput2 && Cursor == 3) // CWE: 571 Condition 'userInput2' is always true
     {
       User_Input_Contact_Screen(contactScreen, 1, contact3, contact3Status, "CONTACT-3");
       whichContactToEdit = 3;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 4)
+    else if(userInput2 && Cursor == 4) // CWE: 571 Condition 'userInput2' is always true
     {
       User_Input_Contact_Screen(contactScreen, 1, contact4, contact4Status, "CONTACT-4");
       whichContactToEdit = 4;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 5)
+    else if(userInput2 && Cursor == 5) // CWE: 571 Condition 'userInput2' is always true
     {
       User_Input_Contact_Screen(contactScreen, 1, contact5, contact5Status, "CONTACT-5");
       whichContactToEdit = 5;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 6)
+    else if(userInput2 && Cursor == 6) // CWE: 571 Condition 'userInput2' is always true
     {
       User_Input_Contact_Screen(contactScreen, 1, contact6, contact6Status, "CONTACT-6");
       whichContactToEdit = 6;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 7)
+    else if(userInput2 && Cursor == 7) // CWE: 571 Condition 'userInput2' is always true
     {
       userInput2 = false;
       userInput = false;
@@ -1477,9 +1490,9 @@ void User_Input_Access_Menu()
     }
     if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
     { 
-      userInput3 = true;
+      userInput3 = true; // CWE: 571 Assignment 'userInput3=true', assigned value is 1
       LCDTimerSwitch = false;
-      if(userInput3)
+      if(userInput3) // CWE: 571 Assignment 'userInput3=true', assigned value is 1
       {
         userInput3 = false;
         userInput2 = false;
@@ -1696,7 +1709,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
       lcd.setCursor(Cursor2,1);
     }
     static char newContact[11];
-    if(newContact[10] != '\0')newContact[10] = '\0';
+    //if(newContact[10] != '\0')newContact[10] = '\0';
     static char newDigit{48};
     n2 = digitalRead(encoderPinA);
     if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
@@ -1704,13 +1717,13 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
       if (digitalRead(encoderPinB) == LOW) 
       {
         //Counter Clockwise turn
-        newDigit--;
-        if(newDigit < 48)
-        {
-          newDigit =57;
-        }
-        lcd.setCursor(Cursor2,1);
-        lcd.print(newDigit);
+        newDigit--;                                 // What the user sees //
+        if(newDigit < 48)                           //====================//
+        {                                           //CONTACT-1 0123456789//
+          newDigit =57;                             //->STATUS: ACTIVE    //
+        }                                           //  EDIT#             //
+        lcd.setCursor(Cursor2,1);                   //  EXIT              //
+        lcd.print(newDigit);                        //====================// 
         lcd.setCursor(Cursor2,1);
       } 
       else //Clockwise turn
@@ -1835,10 +1848,10 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                   //Counter Clockwise turn
                   selector--;
                   delay(20);                          //====================//
-                  if(selector < 0)                    //->Fault History     //
-                  {                                   //->Fault History     //
+                  if(selector < 0)                    //CURRENT#  0000000000//
+                  {                                   //ENTER NEW#          //
                     selector = 2;                     //->SAVE     TIME 180 //
-                  }                                   //->REDO     EXIT     //
+                  }                                   //  REDO     EXIT     //
                 }                                     //====================//
                 else //Clockwise turn
                 {
@@ -1878,6 +1891,8 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
             }
             if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
             { 
+              Serial.print(F("Free RAM = "));
+              Serial.println(freeMemory());
               stopRotaryEncoder = false;
               LCDTimerSwitch2 = false;
                 if(selector == 0)// SAVE NEW CONTACT 
