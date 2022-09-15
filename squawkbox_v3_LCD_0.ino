@@ -149,8 +149,9 @@ const int contact6Address {3806};
 
 ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
-File myFile; // consider DateTime now = rtc.now() instansiation only once in the loop??? Heap frag concerns??
+File myFile; 
 RTC_PCF8523 rtc;
+// consider DateTime now = rtc.now() instansiation only once in the loop??? Heap frag concerns??
 
 //=======================================================================//
 //================================SETUP()================================//
@@ -162,29 +163,28 @@ void setup()
   Serial1.begin(19200);
   printf("This is squawkbox V3.LCD.0 sketch.\n");
   if (! rtc.begin()) 
-   {
-     printf("Couldn't find RTC.\n");
-     Serial.flush();
-     abort();
-   }
+  {
+    printf("Couldn't find RTC.\n");
+    Serial.flush();
+    //abort(); // maybe not? 
+  }
   if (! rtc.initialized() || rtc.lostPower()) 
-   {
-     printf("RTC is NOT initialized, let's set the time!\n");
-     // When time needs to be set on a new device, or after a power loss, the
-     // following line sets the RTC to the date & time this sketch was compiled
-                 // Note: allow 2 seconds after inserting battery or applying external power
-                 // without battery before calling adjust(). This gives the PCF8523's
-                 // crystal oscillator time to stabilize. If you call adjust() very quickly
-                 // after the RTC is powered, lostPower() may still return true.
-     delay(3000);
-     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-      
-   }
+  {
+    printf("RTC is NOT initialized, let's set the time!\n");
+    // When time needs to be set on a new device, or after a power loss, the
+    // following line sets the RTC to the date & time this sketch was compiled
+                // Note: allow 2 seconds after inserting battery or applying external power
+                // without battery before calling adjust(). This gives the PCF8523's
+                // crystal oscillator time to stabilize. If you call adjust() very quickly
+                // after the RTC is powered, lostPower() may still return true.
+    delay(3000);
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));  
+  }
   rtc.start();
 
-  lcd.init(); // LCD initialization
+  lcd.init(); 
   lcd.backlight();
-  lcd.begin(20, 4); // initialize LCD screen (columns, rows)
+  lcd.begin(20, 4); // Initialize LCD screen (columns, rows)
   lcd.setCursor(2, 1);
   lcd.print("AB3D Squawk Box");
   delay(2000);
@@ -218,7 +218,7 @@ void setup()
   SIMboot();
   boot_SD();
   EEPROM_Prefill();
-  loadContacts(); //run the SD card function.
+  loadContacts();
   printf("Contacts Loaded.  Booting SIM module.  Initiating wakeup sequence...\n");
   initiateSim();
   printf("Setup() Function complete. Entering Main Loop() Function.\n");
