@@ -2,7 +2,7 @@ AB3D Embedded Software Testing / QA Standards
 
 - Testing should be designed to be destructive, that is, to prove the program doesn’t work!
 
-Code:
+Software:
 - AVOID the String class as it will lead to excessive dynamic memory allocation, Heap fragmentaion, 
   and random / abnormal behavior that is hard to diagnose.
 - All code that complies and is to be either submitted for GitHub commit or used in a hardware 
@@ -24,8 +24,6 @@ Code:
   the responsiveness to both the boiler and the user. If needed individual funtion() entry-point and 
   exit-point time measurements can be taken and averaged to determine the time of execution of a 
   particular trouble funtion. 
-
-=================================================================================================
 
 Functional Testing “Black Box”: Because black-box tests depend only on the program requirements 
 and its I/O behavior, they can be developed as soon as the requirements are complete. This allows 
@@ -57,10 +55,28 @@ the source code handy.
 • Condition coverage: Test cases chosen to force each condition (term) in a
   decision to take on all possible logic values.
   
-=================================================================================================
+=====================================================================================================================
+=========================================== Hardware / Field testing:================================================
+=====================================================================================================================
 
-Hardware:
-- A1 Cleaners A1_V1_0 installed AUG 2021: 
+- A1 Cleaners squawkbox-v3.LCD.0 TOBE installed SEPT 2022:
+   Completely new version. Replaced transformers with contactors, Major software update, added LCD screen,
+   customer now has the ability to input their own phone numbers and activate / deactivate them. 
+   
+   *Current failures: 0.
+   
+   Initial concerns to address:
+   - . 
+=====================================================================================================================
+- A1 Cleaners A1_V2_0 installed AUG 2021:
+   Software update to fis SIM reboot issue from below. 
+   
+   *Current failures: 0.
+   
+   Initial concerns to address:
+   - SIMBoot() should function auotmatically upon start-up. 
+=====================================================================================================================   
+- A1 Cleaners A1_V1_0 installed MAR 2021: 
    Boiler is currently running at a normal boiler operating room temp of >140F for 5 days a week. 
    
    *Current environmental failures: 1. (Teensy 4.1 for monitoring temp / humidity) - unrelated to 
@@ -68,7 +84,11 @@ Hardware:
    *Current hardware failures: 1. (RS-485 module) - manufacturer defect. 
    *Current software failures: 1. (Heap Fragmentaion causing stack crash) - Use of C style strings 
                                   instead of String Class corrected issue. This presented as abnormal / random 
-                                  behavior after an undertermined amount of time. 
+                                  behavior after an undertermined amount of time.
+   *Current software failures: 2. (SIM reboot issue) SIM module get power to A3 pin every time the squawk reboots. 
+                                  This causes the SIM module to power off if only the Mega resets. THis issue will 
+                                  lead to an OFF SIM module and cueeently the Mega has to be iether completely 
+                                  powered down or reset twice to prevent this. 
    
    Initial concerns to address:
    - Microcontroller input wire shielding (Interference caused by close proximity to 120VAC -> 5VDC transformers)
@@ -78,8 +98,8 @@ Hardware:
    - Larger / longer antenne needed to help eliminate building 4G LTE interference. 
    - Consider an external Squawk RESET button.
    - Consider using INPUT_PULLUP and pulling contactors to ground instead of using 120VAC transformers to input 5VDC to board. 
-
-- MayDay Brewery breadboard installed AUG 2019 / depricated NOV 2021:
+========================================================================================================================
+- MayDay Brewery breadboard installed AUG 2019 / deprecated NOV 2021:
    Boiler is currently running 5 days a week.
    
    *Current environmental failures: 0. 
