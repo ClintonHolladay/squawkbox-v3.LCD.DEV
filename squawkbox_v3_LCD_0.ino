@@ -610,7 +610,7 @@ void Honeywell_alarm()
   }
   else
   {
-    if(alarm == LOW)
+    if(alarm == LOW && HWAlarmSent == 1)
     {
       alarmSwitch3 = false;
       HWAlarmSent = 0;
