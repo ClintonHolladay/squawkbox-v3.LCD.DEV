@@ -103,7 +103,7 @@ the source code handy.
    Boiler is currently running 5 days a week.
    
    *Current environmental failures: 0. 
-   *Current hardware failures: 2. (SIM900 Module) - manufacturer defect.
+   *Current hardware failures: 2. (SIM900 Module) - manufacturer defect. 2G phase out requiring major update.
                                   (SIM7000A 4G Module) - manufacturer defect. Start using DFRobot modules instead. 
    *Current software failures: 2. (HLPC()) - Edit to the logic corrected issue.
                                   (MODBus()) - Edit to the logic corrected issue.
