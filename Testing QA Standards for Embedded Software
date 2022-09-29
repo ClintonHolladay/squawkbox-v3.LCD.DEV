@@ -32,11 +32,17 @@ black-box test cases to be developed in parallel with the rest of the system des
 • Stress tests: Tests that intentionally overload input channels, SD card Module, 
   memory management systems, SIM Module, and so on.
 • Boundary value tests: Inputs that represent “boundaries” within a particular range (for example, 
-  largest and smallest integers together with − 1, 0, + 1, for an integer input) and input values 
-  that should cause the output to transition across a similar boundary in the output range.
+  above the largest and below the smallest integers for an integer input) are to be used. This ensures 
+  that exceptions are caught and delt with properly. 
 • Exception tests: Tests that should trigger a failure mode or exception mode.
-• Random tests: Generally, the least productive form of testing but still widely used to evaluate 
-  the robustness of user-interface code.
+  - SD Module failure to boot.
+  - SD .txt file failure to open or be found.
+  - SIM module failure to boot.
+  - Failure to receive SMS from user. 
+  - ModBus read failure.
+  - memoryTest() alert for memory leaks.
+• Random tests: Generally, the least productive form of testing but still used to evaluate 
+  the robustness of code. Input of random values, multiple alarms at the same time etc. 
 • Performance tests: Does it do what it is designed to do under normal conditions? 
   - Test ALL alarms to ensure the proper messages gets sent.
   - Access ALL UI screens and sub screens.
@@ -51,8 +57,9 @@ the source code handy.
 
 • Statement coverage: Test cases selected because they execute every statement in the program at least once.
 • Decision or branch coverage: Test cases chosen because they cause every
-  branch (both the true and false path) to be executed at least once.
-• Condition coverage: Test cases chosen to force each condition (term) in a
+  branch (both the true and false path) to be executed at least once. 
+  (often tested during DEV because these require specific conditions to be met.)
+• Condition coverage: Test cases chosen to force each condition in a
   decision to take on all possible logic values.
   
 =====================================================================================================================
