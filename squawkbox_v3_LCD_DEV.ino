@@ -1,3 +1,6 @@
+// squawkbox_v1.0.4 13 Oct 2022 @ 1700
+// Added PINs NOT to be used as digitals
+
 // GNU GENERAL PUBLIC LICENSE Version 2, June 1991
 
 // TODO:
@@ -17,7 +20,7 @@
 #include <EEPROM.h>            // GNU Lesser General Public
 #include <RTClib.h>            // MIT License
 #include <LibPrintf.h>         // MIT License
-#include <MemoryFree.h>       // GNU GENERAL PUBLIC LICENSE V2
+#include <MemoryFree.h>        // GNU GENERAL PUBLIC LICENSE V2
 
 //#define PRINTF_DISABLE_ALL // Not working as advertised in the LibPrintf.h GutHub
 //#define printf(x...) // Deletes ALL prinf() functions in order to save SRAM amd make the production code faster/smoother. 
@@ -31,6 +34,7 @@
 #define CCW -1
 #define PUSH_BUTTON 0
 
+//PIN 10-13 is NOT to be used!
 //The following const int pins are all pre-run in the PCB:
 const int low1 {5};         //to screw terminal
 const int low2 {6};         //to screw terminal
@@ -74,7 +78,7 @@ static bool SLWCOSent{};
 static bool HWAlarmSent{};
 static bool hlpcSent{};
 
-static char urlHeaderArray[100]; // Twilio end point url (twilio might change this!)
+static char urlHeaderArray[100]; // Twilio end point url (twilio might change this!) AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?
 // holds the phone number to recieve text messages
 static char contactFromArray1[25];
 static char conToTotalArray[60] {"To="};
@@ -187,7 +191,7 @@ void setup()
   lcd.begin(20, 4); // Initialize LCD screen (columns, rows)
   lcd.setCursor(2, 1);
   lcd.print("AB3D Squawk Box");
-  delay(2000);
+  delay(2000);// Allows LCD screen to be visualized
   
   pinMode(low1, INPUT);
   pinMode(low2, INPUT);
@@ -507,13 +511,12 @@ void primary_LW()
       Data_Logger(PrimaryString);
       printf("Data_Logger(PrimaryString)function complete.\n");
       PLWCOSent = 1;
-      alarmSwitch = false;
     }
     else printf("%lu\n",difference); 
   }
   else
   {
-    if(!primaryCutoff && PLWCOoutlet)
+    if(!primaryCutoff && PLWCOoutlet && alarmSwitch)
     {
       alarmSwitch = false;
       PLWCOSent = 0;
@@ -551,7 +554,6 @@ void secondary_LW()
       Data_Logger(SecondaryString);
       printf("Data_Logger(SecondaryString)function complete.\n");
       SLWCOSent = 1;
-      alarmSwitch2 = false;
     }
     if (difference2 < debounceInterval)
     {
@@ -560,7 +562,7 @@ void secondary_LW()
   }
   else
   {
-    if(!secondaryCutoff && SLWCOoutlet)
+    if(!secondaryCutoff && SLWCOoutlet && alarmSwitch2)
     {
       alarmSwitch2 = false;
       SLWCOSent = 0;
@@ -601,7 +603,6 @@ void Honeywell_alarm()
       Data_Logger(AlarmString);
       printf("Data_Logger(AlarmString)function complete.\n");
       HWAlarmSent = 1;
-      alarmSwitch3 = false;
     }
     if (difference3 < debounceInterval)
     {
@@ -610,7 +611,7 @@ void Honeywell_alarm()
   }
   else
   {
-    if(alarm == LOW && HWAlarmSent == 1)
+    if(alarm == LOW && alarmSwitch3)
     {
       alarmSwitch3 = false;
       HWAlarmSent = 0;
@@ -648,7 +649,6 @@ void HLPC()
       Data_Logger(hlpcString);
       printf("Data_Logger(hlpcString)function complete.\n");
       hlpcSent = 1;
-      alarmSwitch4 = false;
     }
     if (difference4 < debounceInterval)
     {
@@ -657,7 +657,7 @@ void HLPC()
   }
   else
   {
-    if (hlpcNC)
+    if (hlpcNC && alarmSwitch4)
     {
       alarmSwitch4 = false;
       hlpcSent = 0;
@@ -1962,5 +1962,18 @@ void Save_New_Contact(char txtDOC[], char NEWCONTACT[])
   else
   {
     printf("Save_New_Contact() failed.\n");
+  }
+}
+
+void memoryTest()
+{
+  int threshold = 3000;
+  int memory = freeMemory();
+  Serial.print(F("memoryTest() Free RAM = "));
+  Serial.print(memory);
+  Serial.println(F(" bytes "));
+  if (memory < threshold)
+  {
+    sendSMS(urlHeaderArray, "To=%2b16158122833&", contactFromArray, "Body=Memory%20Alert%20Possible%20Leak\"\r");
   }
 }
