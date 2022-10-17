@@ -1,9 +1,16 @@
 AB3D Embedded Software Testing / QA Standards
 
+- Testing priorities: Test for most likely errors AND Test for errors with the worst possible consequences. 
 - Testing should be designed to be destructive, that is, to prove the program doesn’t work!
+- Tests should be thought of being conducted with an expected result of either a success or a failure.
+  * Tests with an expected success are generally ones that are testing for functionality, in as much 
+    as ensuring that the unit designed does what it is intended to do. 
+  * Tests with an expected failure are generally ones that are testing to ensure that the designed unit 
+    properly handles any input that it wasn't designed to receive, handles sub-component failures and 
+    alerts the user properly, etc.
 
 Software:
-- AVOID the String class as it will lead to excessive dynamic memory allocation, Heap fragmentaion, 
+- AVOID the String class as it will lead to excessive dynamic memory allocation, Heap fragmentation, 
   and random / abnormal behavior that is hard to diagnose.
 - All code that complies and is to be either submitted for GitHub commit or used in a hardware 
   testing application is to be ran through CPPCheck, and corrected accordingly. 
@@ -21,9 +28,9 @@ Software:
 - All prinf() calls are to be #define(d) out of (or completely removed from) production code. 
 
 - Main loop() is to be clocked and the time documented after any addition to the code. This is to check 
-  the responsiveness to both the boiler and the user. If needed individual funtion() entry-point and 
+  the responsiveness to both the boiler and the user. If needed individual function() entry-point and 
   exit-point time measurements can be taken and averaged to determine the time of execution of a 
-  particular trouble funtion. 
+  particular trouble function. 
 
 Functional Testing “Black Box”: Because black-box tests depend only on the program requirements 
 and its I/O behavior, they can be developed as soon as the requirements are complete. This allows 
@@ -76,12 +83,12 @@ the source code handy.
    - . 
 =====================================================================================================================
 - A1 Cleaners A1_V2_0 installed AUG 2021:
-   Software update to fis SIM reboot issue from below. 
+   Software update to fix SIM reboot issue from below. 
    
    *Current failures: 0.
    
    Initial concerns to address:
-   - SIMBoot() should function auotmatically upon start-up. 
+   - SIMBoot() should function automatically upon start-up. 
 =====================================================================================================================   
 - A1 Cleaners A1_V1_0 installed MAR 2021: 
    Boiler is currently running at a normal boiler operating room temp of >140F for 5 days a week. 
@@ -89,12 +96,12 @@ the source code handy.
    *Current environmental failures: 1. (Teensy 4.1 for monitoring temp / humidity) - unrelated to 
                                        SquawkBox performance. 
    *Current hardware failures: 1. (RS-485 module) - manufacturer defect. 
-   *Current software failures: 1. (Heap Fragmentaion causing stack crash) - Use of C style strings 
+   *Current software failures: 1. (Heap Fragmentation causing stack crash) - Use of C style strings 
                                   instead of String Class corrected issue. This presented as abnormal / random 
-                                  behavior after an undertermined amount of time.
+                                  behavior after an undetermined amount of time.
    *Current software failures: 2. (SIM reboot issue) SIM module get power to A3 pin every time the squawk reboots. 
-                                  This causes the SIM module to power off if only the Mega resets. THis issue will 
-                                  lead to an OFF SIM module and cueeently the Mega has to be iether completely 
+                                  This causes the SIM module to power off if only the Mega resets. This issue will 
+                                  lead to an OFF SIM module and currently the Mega has to be either completely 
                                   powered down or reset twice to prevent this. 
    
    Initial concerns to address:
@@ -102,7 +109,7 @@ the source code handy.
    - DIN rail mounting method needs to be 3D printed in PETG. 
    - Electrical panel needs to be 2x-3x larger. 
    - Standoffs will be a requirement for mounting panels directly onto a boiler. 
-   - Larger / longer antenne needed to help eliminate building 4G LTE interference. 
+   - Larger / longer antenna needed to help eliminate building 4G LTE interference. 
    - Consider an external Squawk RESET button.
    - Consider using INPUT_PULLUP and pulling contactors to ground instead of using 120VAC transformers to input 5VDC to board. 
 ========================================================================================================================
@@ -120,4 +127,4 @@ the source code handy.
    - Additional functionality required to be a final solution.
    - DIN rail mounting solution needs to be found. 
    - Needs a dedicated Electrical panel. 
-   - Antenne needed to help eliminate building phone signal interference.
+   - Antenna needed to help eliminate building phone signal interference.
