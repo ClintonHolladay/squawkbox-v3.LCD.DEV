@@ -1,5 +1,5 @@
-// squawkbox_v1.0.4 13 Oct 2022 @ 1700
-// Added PINs NOT to be used as digitals
+// squawkbox_v3.0.0 19 Oct 2022 @ 1700
+// started going back through the code and fixing the comments. it has been a while. 
 
 // GNU GENERAL PUBLIC LICENSE Version 2, June 1991
 
@@ -13,7 +13,7 @@
 // Prompt when all contacts are inactive.
 
                                // Library licensing information  //
-//#include <Arduino.h>         // GNU Lesser General Public    // We are not required to directly include this library. 
+//#include <Arduino.h>         // GNU Lesser General Public    // Included automatically by the Arduino IDE. 
 #include <SD.h>                // GNU General Public License V3
 #include <ModbusMaster.h>      // Apache License Version 2.0
 #include <LiquidCrystal_I2C.h> // NOT posted in the documentation
@@ -34,7 +34,7 @@
 #define CCW -1
 #define PUSH_BUTTON 0
 
-//PIN 10-13 is NOT to be used!
+//PINs 10-13 are NOT to be used, unless PCB v3 is altered. These are jumpered to the SD module pins
 //The following const int pins are all pre-run in the PCB:
 const int low1 {5};         //to screw terminal
 const int low2 {6};         //to screw terminal
@@ -63,14 +63,6 @@ const char SecondaryString[] {"Secondary Low Water"}; //========================
 const char hlpcString[] {"High Limit"};               //alarm text printed to the LCD screen//
 const char AlarmString[] {"FSG Alarm"};               //====================================//
 const char DefaultString[] {"Open Fault Memory"};     //====================================//
-// message to be sent from the squawk to the customer
-// const char SetCombody[] = "Body=Setup%20Complete\"\r";
-// const char LWbody[] = "Body=Primary%20Low%20Water\"\r";
-// const char LW2body[] = "Body=Secondary%20Low%20Water\"\r";
-// const char REPbody[] = "Body=Routine%20Timer\"\r";
-// const char HLPCbody[] = "Body=High%20Pressure%20Alarm\"\r";
-// const char CHECKbody[] = "Body=Good%20Check\"\r";
-// const char BCbody[] = "Body=Boiler%20Down\"\r";
 
 // variables indicating whether or not an alarm message has been sent or not
 static bool PLWCOSent{};
@@ -78,10 +70,9 @@ static bool SLWCOSent{};
 static bool HWAlarmSent{};
 static bool hlpcSent{};
 
-static char urlHeaderArray[100]; // Twilio end point url (twilio might change this!) AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?
-// holds the phone number to recieve text messages
-static char contactFromArray1[25];
-static char conToTotalArray[60] {"To="};
+static char urlHeaderArray[100]; // Twilio end point URL (twilio might change this!) AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?
+static char contactFromArray1[25];// holds the phone number to recieve text messages
+static char conToTotalArray[60] {"To="};// holds the customer phone numbers that will recieve text messages
 
 // Bools used to maintain LCD screen until the user presses the button to go to the next screen
 static bool userInput{};
@@ -135,7 +126,7 @@ enum EEPROMAlarmCode // Used to encode which alarm is to be saved into the EEPRO
 //EEPROM variables
 const int numberOfSavedFaults {400};
 const int eepromAlarmDataSize = sizeof(alarmVariable); 
-static int EEPROMinputCounter{};
+static int EEPROMinputCounter{}; // Used to keep track of where the next fault should be saved in the EEPROM
 const uint8_t EEPROMInitializationKey {69};
 
 //EEPROM addresses 0 - 4096 (8 bits each)
@@ -170,7 +161,7 @@ void setup()
   {
     printf("Couldn't find RTC.\n");
     Serial.flush();
-    //abort(); // maybe not? 
+    //Needs a function to send an SMS to notify/ (Not sure what this will do to the rest of the program if this fails??) Needs to be tested
   }
   if (! rtc.initialized() || rtc.lostPower()) 
   {
@@ -218,18 +209,17 @@ void setup()
   lcd.print("Initializing SIM");
   lcd.setCursor(7, 2);
   lcd.print("Module");
-  printf("Starting SIMboot().\n");
   SIMboot();
   boot_SD();
   EEPROM_Prefill();
   loadContacts();
   printf("Contacts Loaded.  Booting SIM module.  Initiating wakeup sequence...\n");
   initiateSim();
-  printf("Setup() Function complete. Entering Main Loop() Function.\n");
   lcd.clear();
   lcd.noBacklight();
   Serial.print(F("Free RAM = "));
   Serial.println(freeMemory());
+  printf("Setup() Function complete. Entering Main Loop() Function.\n");
 }
 
 
@@ -261,7 +251,7 @@ void loop()
 //=======================================================================//
 
 
-void EEPROMalarmInput(int ALARM) // we are inputing into the EEPROM NOT the program
+void EEPROMalarmInput(int ALARM) // we are inputing into the EEPROM not SRAM
 {
   alarmVariable writingSTRUCT;
   printf("EEPROMinputCounter at start of function = %i.\n\n", EEPROMinputCounter);
@@ -277,21 +267,23 @@ void EEPROMalarmInput(int ALARM) // we are inputing into the EEPROM NOT the prog
   if(EEPROMinputCounter == (eepromAlarmDataSize * numberOfSavedFaults)) 
   {
     EEPROMinputCounter = 0;
-    printf("\nREST EEPROMinputCounter NOW.\n\n");
+    printf("\nRESET EEPROMinputCounter NOW.\n\n");
   }
   EEPROM.put(EEPROMinputCounterAddress, EEPROMinputCounter);
 }
 
-void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)
+void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)// Print saved EEPROM faults onto the LCD
 {
   char buffer[20];
   static int SavedAlarmCounter {};// The number displayed on the LCD screen after "SAVED ALARM:" (1 indicates the most recent saved alarm)
   alarmVariable readingSTRUCT;
   
-// Logic for determining if the user is turning the knob CW, CCW, or just pushed the button
+  // Logic for determining if the user is turning the knob CW, CCW, or just pushed the button
   if(encoderTurnDirection == CW)//User turned the dial ClockWise
   {
-    outputCounter -= eepromAlarmDataSize;//outputCounter will always be one eepromAlarmDataSize less than the EEPROMinputCounter
+    outputCounter -= eepromAlarmDataSize;/*outputCounter will always be one eepromAlarmDataSize less than the EEPROMinputCounter,
+                                           this is because the outputCounter allows the user to read the saved fault where as the 
+                                           inputCounter is a place holder for the next fault that is yet to be saved*/
     SavedAlarmCounter++;
     if(SavedAlarmCounter > numberOfSavedFaults)// Recycle
     {
@@ -313,7 +305,7 @@ void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)
     SavedAlarmCounter = 1;
   }
 
-// Recycle the EEPROM address (outputCounter) in a loop fashion
+  // Recycle the EEPROM address (outputCounter) in a loop fashion
   if(outputCounter < 0)
   {
     outputCounter = eepromAlarmDataSize * (numberOfSavedFaults - 1); //The inputCounter recyles when it gets to numberOfSavedFaults, so that exact address never actually gets used, hence the - 1.
@@ -321,8 +313,8 @@ void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)
   if(outputCounter == (eepromAlarmDataSize * numberOfSavedFaults)) 
   {
     outputCounter = 0;
-    printf("RESET outputCounter NOW.\n\n");
   }
+  // Now that we have decided what our counters actually are we can pull the data from the EEPROM and display it.   
   EEPROM.get(outputCounter, readingSTRUCT);
   printf("EEPROMinputCounter is %i\n",EEPROMinputCounter);
   printf("EEPROM ALARM is retrieved from slot %i.\n", ((outputCounter / eepromAlarmDataSize) + 1)); //outputCounter will always be one eepromAlarmDataSize less than the EEPROMinputCounter
@@ -353,7 +345,7 @@ void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)
   printf("outputCounter is now = %i.\n\n", outputCounter);
 }
 
-void print_alarms()//rethink how this function is layed out and structured...
+void print_alarms()//rethink how this function is laid out and structured... There has to be a way to make it nowhere near as long. 
 {   
   static bool ClearScreenSwitch {false};         // to be put into the complete LCD function
   static unsigned long ClearScreendifference {}; // to be put into the complete LCD function
@@ -676,43 +668,34 @@ void sendSMS(char URL[], char to[], char from[], char body[])//SIM7000A module
   delay(20);
   Serial1.print("AT+HTTPTERM\r");
   delay(1000);
-  //getResponse();
   Serial1.print("AT+SAPBR=3,1,\"APN\",\"super\"\r");
   delay(300);
-  //getResponse();
   Serial1.print("AT+SAPBR=1,1\r");
   delay(1000);
-  //getResponse();
   Serial1.print("AT+HTTPINIT\r");
   delay(100);
-  //getResponse();
   Serial1.print("AT+HTTPPARA=\"CID\",1\r");
   delay(100);
-  //getResponse();
   Serial1.println(finalURL);
   delay(100);
-  //getResponse();
   Serial1.print("AT+HTTPACTION=1\r");
   delay(4000);
-  //getResponse();
 }
 
-void getResponse() // serial monitor printing for troubleshooting REMOVE FROM PRODUCTION CODE
-{
-unsigned char data {};
-  while (Serial1.available())
-  {
-    data = Serial1.read();
-    Serial.write(data);
-    delay(5);
-  }
-}
+// void getResponse() // serial monitor printing for troubleshooting REMOVE FROM PRODUCTION CODE
+// {
+//   unsigned char data {};
+//   while (Serial1.available())
+//   {
+//     data = Serial1.read();
+//     Serial.write(data);
+//     delay(5);
+//   }
+// }
 
-void timedmsg() // daily timer message to ensure Squawk is still operational
+void timedmsg() // daily timer message to ensure Squawk is still operational. For testing ONLY (REMOVE FROM PRODUCTION CODE)
 {
   static bool msgswitch {false};
-  static const unsigned long fifmintimer {900000};
-  static const unsigned long fivmintimer {300000};
   static const unsigned long dailytimer {86400000};  
   static unsigned long difference5 {};
   static unsigned long msgtimer1 {};
@@ -725,15 +708,14 @@ void timedmsg() // daily timer message to ensure Squawk is still operational
 
   if (difference5 >= dailytimer)
   {
-    sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Routine%20Timer\"\r");
+    sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=LCDV3%20Routine%20Timer\"\r");
     msgswitch = false;
   }
 }
 
-void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the random letters that are recieved
+void SMSRequest()//Allows the customer to text the Squawk and receive responses.
 {
   char incomingChar {};
-  //add message for changing the operators phone number
   if (Serial1.available() > 0) 
   {
     incomingChar = Serial1.read();
@@ -775,12 +757,12 @@ void SMSRequest()//SIM7000A module // maybe use a while loop but need to fix the
   }
 }
 
-void Data_Logger(const char FAULT[])//add in cycle count and run time hours?
+void Data_Logger(const char FAULT[])//Saves boiler data to the SD card in CSV format. 
 {
   DateTime now = rtc.now();
   myFile = SD.open("DataLog.txt", FILE_WRITE);
   if (myFile) 
-  {
+  {//add in cycle count and run time hours?
     myFile.print(FAULT);
     myFile.print(",");
     myFile.print(now.unixtime());
@@ -802,7 +784,7 @@ void Data_Logger(const char FAULT[])//add in cycle count and run time hours?
   } 
   else
   {
-    printf("Data Log failed.\n");
+    printf("Data Log failed.\n");//add in fault code LED function?
   }
 }
 
@@ -816,17 +798,17 @@ void boot_SD() //see if the card is present and can be initialized
   else
   {
     printf("SD.begin() is GOOD.\n");
-    //const char* FILE {"DataLog.txt"}; //Arduino file names can only be <= 8 characters
+    //const char* FILE {"DataLog.txt"}; //Arduino file names can only be <= 8 characters, this took a while to figure out...:(
     myFile = SD.open("DataLog.txt", FILE_WRITE);
     if (myFile) 
     {
-      if(myFile.position() == 0)
+      if(myFile.position() == 0)//Initialize the top data row of the CSV file if it has NOT been done already.
       {
         myFile.println("Fault, UnixTime, Year, Month, Day, Hour, Minute, Second");
         myFile.close();
         printf("SD Card initialization complete.\n");
       }
-      else
+      else //if CSV file was already initialized then DataLog that a reset occured.
       {
         DateTime now = rtc.now();
         myFile.print("SystemRESET");
@@ -845,24 +827,25 @@ void boot_SD() //see if the card is present and can be initialized
         myFile.print(",");
         myFile.print(now.second());
         myFile.println();  //End of Row move to next row
-        myFile.close();    //Close the file
+        myFile.close();
         printf("SD Prior initialization recognition & SystemRESET Data Log Complete.\n");
       }
     }
     else
     {
       printf("***ERROR SD Prior initialization recognition OR SystemRESET Data Log Failed.***\n");
+      //add in Exception catch
     }
   }
 }
 
-void loadContacts()
+void loadContacts()//Pull customer and Squawk phone numbers from the SD card and load them into the local variables
 {
-  fill_from_SD("from1.txt", contactFromArray1);// from # doesnt just have digits in it...???
+  fill_from_SD("from1.txt", contactFromArray1);/
   printf("From number is: ");
   Serial.println(contactFromArray1);
   fill_from_SD("to1.txt", contact1);
-  if (contact1[0] > 0 && contact1Status) // maybe do if (contact1[0] > 48 && contact1[0] < 58 && contact1Status)
+  if (contact1[0] > 0 && contact1Status) // maybe do if (contact1[0] > 48 && contact1[0] < 58 && contact1Status) ASCII will check for an actual phon number
   {
     strcat(conToTotalArray, contact1);
   }
@@ -934,10 +917,10 @@ void loadContacts()
   strcat(conToTotalArray, "&");//format the "to" list of numbers for being in the URL by ending it with '&' so that next parameter can come after
   printf("The total contact list is: \n");
   Serial.println(conToTotalArray);
-  Serial.print("fourth position character: ");
+  printf("fourth position character: ");
   Serial.println(conToTotalArray[3]);
   fill_from_SD("URL.txt", urlHeaderArray);
-  Serial.print("URL header is: ");
+  printf("URL header is: ");
   Serial.println(urlHeaderArray);
 }
 
@@ -981,10 +964,9 @@ void postTransmission() // user designated action required by the MODBUS library
   digitalWrite(MAX485_DE, 0);
 }
 
-void readModbus() // getting FSG faults from the FSG
+void readModbus() // getting FSG faults from the FSG // ALL DELAYS ARE NECESSARY
 {
   printf("In the readModbus() function now.\n");
-  delay(300);
   uint16_t result = node.readHoldingRegisters (0x0000, 1);
 
   if (result == node.ku8MBSuccess) // ku8MBSuccess == 0x00
@@ -1027,10 +1009,11 @@ void readModbus() // getting FSG faults from the FSG
   }
 }
 
-void SIMboot()
+void SIMboot()// ALL DELAYS ARE NECESSARY
 {
+  printf("Starting SIMboot().\n");
 //This function only boots the SIM module if it needs to be booted
-//This prevents nuisance power-downs upon startup
+//This prevents nuisance SIM module power-downs upon Mega reboot
   unsigned char sim_buffer {};
   for (int i = 0; i < 10; i++)
   {
@@ -1061,57 +1044,45 @@ void SIMboot()
   }
 }
 
-void initiateSim()
+void initiateSim()// ALL DELAYS ARE NECESSARY
 {
   //The remainder of the setup is for waking the SIM module, logging on, and sending the first
   //test message to verify proper booting.
   printf("Hey!  Wake up!\n");
   Serial1.print("AT\r"); //Toggling this blank AT command elicits a mirror response from the
-  //SIM module and helps to activate it.
-  //getResponse();
+                         //SIM module and helps to activate it.
   Serial1.print("AT\r");
   delay(50);
-  //getResponse();
   Serial1.print("AT\r");
   delay(50);
-  //getResponse();
   Serial1.print("AT\r");
   delay(50);
-  //getResponse();
   Serial1.print("AT\r");
   delay(50);
-  //getResponse();
 
   //========   SIM MODULE SETUP   =======//
 
   Serial1.print("AT+CGDCONT=1,\"IP\",\"super\"\r");//"super" is the key required to log onto the network using Twilio SuperSIM
   delay(500);
-  //getResponse();
   Serial1.print("AT+COPS=1,2,\"310410\"\r"); //310410 is AT&T's network code https://www.msisdn.net/mccmnc/310410/
   delay(5000);
-  //getResponse();
   Serial1.print("AT+SAPBR=3,1,\"APN\",\"super\"\r"); //establish SAPBR profile.  APN = "super"
   delay(3000);
-  //getResponse();
   Serial1.print("AT+SAPBR=1,1\r");
   delay(2000);
-  //getResponse();
   Serial1.print("AT+CMGD=0,4\r"); //this line deletes any existing text messages to ensure
-  //that the message space is empy and able to accept new messages
+                                  //that the message space is empy and able to accept new messages
   delay(100);
-  //getResponse();
   Serial1.print("AT+CMGF=1\r");
   delay(100);
-  //getResponse();
   Serial1.print("AT+CNMI=2,2,0,0,0\r"); //
   delay(100);
-  //getResponse();
   sendSMS(urlHeaderArray, contactFromArray1, conToTotalArray, "Body=Setup%20Complete\"\r");
   delay(2000);
-  Serial.println(F("initiateSim() complete."));
+  printf("initiateSim() complete.\n");
 }
 
-void LCDwaiting()
+void LCDwaiting()//Display to the customer that an SMS is being sent and that the LCD will be unresponsive during these few seconds. 
 {
   lcd.clear();
   lcd.backlight();
@@ -1136,21 +1107,21 @@ void EEPROM_Prefill()// EEPROM initialization function
   if(EEPROM.read(EEPROMInitializationAddress) == EEPROMInitializationKey) //If this is true then the EEPROM has already been initialized.  
   {
     printf("\n***EEPROM has been previously initialized.***\n");
-    EEPROM.get(EEPROMinputCounterAddress, EEPROMinputCounter);
+    EEPROM.get(EEPROMinputCounterAddress, EEPROMinputCounter); //Retrieve the saved inputCounter
     contact1Status = EEPROM.read(contact1Address);
     contact2Status = EEPROM.read(contact2Address);
-    contact3Status = EEPROM.read(contact3Address);
+    contact3Status = EEPROM.read(contact3Address);    //determine if these contacts are active or not
     contact4Status = EEPROM.read(contact4Address);
     contact5Status = EEPROM.read(contact5Address);
     contact6Status = EEPROM.read(contact6Address);
   }
-  else 
+  else //EEPROM has NOT already been initialized and needs the default data saved into it. 
   {
     printf("\n***EEPROM is uninitialized... PreFilling EEPROM Faults now.***\n\n");
-    EEPROM.write(EEPROMInitializationAddress, EEPROMInitializationKey);
+    EEPROM.write(EEPROMInitializationAddress, EEPROMInitializationKey);//Key being saved shows that the EEPROM has been initialized.
     EEPROM.put (EEPROMinputCounterAddress, EEPROMinputCounter);
     const alarmVariable prefillSTRUCT = {255, 1111, 11, 11, 11, 11, 11};
-    for (int i = 0; i < EEPROMLastFaultAddress; i += eepromAlarmDataSize)
+    for (int i = 0; i < EEPROMLastFaultAddress; i += eepromAlarmDataSize)//Iterate through the EEPROM and fill it with the default data.
     {
       EEPROM.put(i, prefillSTRUCT);
     }
@@ -1183,7 +1154,7 @@ float get_flame_signal()
   }
 }
 
-void User_Input_Main_Screen(int CURSOR) 
+void User_Input_Main_Screen(int CURSOR)// Prints the Main Contact screen onto the LCD
 {
   lcd.backlight();
   if(CURSOR < 4)
@@ -1215,7 +1186,7 @@ void User_Input_Main_Screen(int CURSOR)
 }
 
 void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS, char CONTACTNAME[]) 
-{
+{ //Once the user chooses a specific contact this function will print that contact's data to the LCD. 
     lcd.clear();
     lcd.setCursor(0,CURSOR);
     lcd.print("-");
@@ -1242,7 +1213,7 @@ void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[],
 }
 
 void Contact_Edit_Screen( char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
-{
+{//Once the user chooses to EDIT a specific contact this function will print that contact's EDIT data to the LCD.
     lcd.clear();
     lcd.setCursor(0,0);
     lcd.print(SCREEN[0]);
@@ -1262,7 +1233,7 @@ void Contact_Edit_Screen( char* SCREEN[], int CURSOR, char CONTACT[], bool STATU
     lcd.blink();
 }
 
-void User_Input_Access_Menu()
+void User_Input_Access_Menu() //Controls the logic behind the functionality of the LCD menu
 {
  //==============================================================================================//
  //==============================================================================================//
@@ -1270,7 +1241,7 @@ void User_Input_Access_Menu()
  //==============================================================================================//
  //==============================================================================================//
  
-  //static int Cursor{};
+  //static int Cursor{}; was changed to be a GLOBAL variable
   static int encoderPinALast {LOW}; 
   static int n {LOW};
   static unsigned long LCDdebounce{};
