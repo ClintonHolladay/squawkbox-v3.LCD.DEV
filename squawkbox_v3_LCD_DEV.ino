@@ -1,5 +1,5 @@
-// squawkbox_v3.0.0 19 Oct 2022 @ 1700
-// started going back through the code and fixing the comments. it has been a while. 
+// squawkbox_v3.0.0 20 Oct 2022 @ 1630
+// continued going back through the code and fixing the comments. 
 
 // GNU GENERAL PUBLIC LICENSE Version 2, June 1991
 
@@ -841,7 +841,7 @@ void boot_SD() //see if the card is present and can be initialized
 
 void loadContacts()//Pull customer and Squawk phone numbers from the SD card and load them into the local variables
 {
-  fill_from_SD("from1.txt", contactFromArray1);/
+  fill_from_SD("from1.txt", contactFromArray1);
   printf("From number is: ");
   Serial.println(contactFromArray1);
   fill_from_SD("to1.txt", contact1);
@@ -1256,24 +1256,20 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
     LCDdebounce = millis();
     LCDTimerSwitch = true;
   }
-  /*  Once userInput has been recieved and t he debounce time has passed we ! the userInput bool and turn 
+  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
    *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
   if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && !userInput && !userInput2)
   {
-    delay(50);
-    userInput = true; // CWE: 571 Assignment 'userInput3=true', assigned value is 1
+    delay(50);//not needed?
+    userInput = true;
     LCDTimerSwitch = false;
-    if(userInput)//this line not needed?
-    {
-      printf("User Input Recieved ON.\n");
-      Cursor = 0;//this line not needed?
-      User_Input_Main_Screen(Cursor);//change to take no arguments and default cursor to 0 in the body of the function?
-    }
-    else printf("User Input Recieved OFF.\n");//this line not needed?
+    printf("User Input Recieved ON.\n");
+    Cursor = 0;//this line not needed?
+    User_Input_Main_Screen(Cursor);//change to take no arguments and default cursor to 0 in the body of the function?
   }
   /*  The userInput bool is used as a latch so that the LCD screen continues to display what the user wants until the pushButton 
-   *  is activated again. When the above timer algorithm has been satisfied the squawk will begin tracking rotational rotary 
-   *  encoder input from the user in order to traverse and LCD display the EEPROM fault data.*/
+  *  is activated again. When the above timer algorithm has been satisfied the squawk will begin tracking rotational rotary 
+  *  encoder input from the user in order to traverse and LCD display.*/
   if(userInput && !userInput2)//change and log the position of the cursor on the MAIN screen
   {
     n = digitalRead(encoderPinA); // make into a funciton with the number of lines as a parameter
@@ -1288,7 +1284,6 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
         {
           Cursor = 0;
           delay(10);//UI tuning. Makes the display user's interaction lees choppy.
-          //return;
         }
         if(Cursor < 4)
         {
@@ -1330,7 +1325,6 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
         if(Cursor > 7)
         {
           Cursor = 7;
-          //return;
         }
         if(Cursor < 4)
         {
@@ -1364,16 +1358,15 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
           lcd.print(">");
         }
       }
-     }
     }
+   }
     encoderPinALast = n; 
-  
- //==============================================================================================//
- //==============================================================================================//
- //======================================SUB MENU CODE===========================================//
- //==============================================================================================//
- //==============================================================================================//
- 
+   //==============================================================================================//
+   //==============================================================================================//
+   //======================================SUB MENU CODE===========================================//
+   //==============================================================================================//
+   //==============================================================================================//
+
   if(digitalRead(pushButton) == LOW && LCDTimerSwitch == false && userInput && !userInput2)
   {
     LCDdebounce = millis();
@@ -1384,48 +1377,48 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
   { 
     userInput2 = true;
     LCDTimerSwitch = false;
-    if(userInput2 && Cursor == 0) // CWE: 571 Condition 'userInput2' is always true
+    if(Cursor == 0) // TURN INTO A SWITCH CASE*************************************************************************************
     {
       faultHistory = true;
       EEPROMalarmPrint(Cursor, 0);
     }
-    else if(userInput2 && Cursor == 1) // CWE: 571 Condition 'userInput2' is always true
+    else if(Cursor == 1)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact1, contact1Status, "CONTACT-1");
       whichContactToEdit = 1;
       //Cursor = 0; // Allowed for saving the cursor position when EXITing the contact menus
     }
-    else if(userInput2 && Cursor == 2) // CWE: 571 Condition 'userInput2' is always true
+    else if(Cursor == 2)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact2, contact2Status, "CONTACT-2");
       whichContactToEdit = 2;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 3) // CWE: 571 Condition 'userInput2' is always true
+    else if(Cursor == 3)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact3, contact3Status, "CONTACT-3");
       whichContactToEdit = 3;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 4) // CWE: 571 Condition 'userInput2' is always true
+    else if(Cursor == 4)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact4, contact4Status, "CONTACT-4");
       whichContactToEdit = 4;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 5) // CWE: 571 Condition 'userInput2' is always true
+    else if(Cursor == 5)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact5, contact5Status, "CONTACT-5");
       whichContactToEdit = 5;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 6) // CWE: 571 Condition 'userInput2' is always true
+    else if(Cursor == 6)
     {
       User_Input_Contact_Screen(contactScreen, 1, contact6, contact6Status, "CONTACT-6");
       whichContactToEdit = 6;
       //Cursor = 0;
     }
-    else if(userInput2 && Cursor == 7) // CWE: 571 Condition 'userInput2' is always true
+    else if(Cursor == 7)
     {
       userInput2 = false;
       userInput = false;
@@ -1453,26 +1446,23 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
       }
     }
     encoderPinALast = n;
-
-    if(digitalRead(pushButton) == LOW) //(&& LCDTimerSwitch == false) took this out to speed up the pushbutton recognition
+    // If user pushes the button again it will back out of the fault history menu. 
+    if(digitalRead(pushButton) == LOW && LCDTimerSwitch == false)
     {
       LCDdebounce = millis();
       LCDTimerSwitch = true;
     }
     if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
     { 
-      userInput3 = true; // CWE: 571 Assignment 'userInput3=true', assigned value is 1
+      userInput3 = true;
       LCDTimerSwitch = false;
-      if(userInput3) // CWE: 571 Assignment 'userInput3=true', assigned value is 1
-      {
-        userInput3 = false;
-        userInput2 = false;
-        faultHistory = false;
-        Cursor = 0;
-        User_Input_Main_Screen(Cursor);
-      }
+      userInput3 = false;
+      userInput2 = false;
+      faultHistory = false;
+      Cursor = 0;
+      User_Input_Main_Screen(Cursor);
     }
- }
+  }
 
  //==============================================================================================//
  //=====================================SUB MENU 2 CODE==========================================//
@@ -1506,7 +1496,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
   static int encoderPinALast2 {LOW}; 
   static int n2 {LOW};
   
-  if(userInput && userInput2 && !faultHistory)
+  if(userInput && userInput2 && !faultHistory)// I dont think this if statement is needed
   { 
     n2 = digitalRead(encoderPinA);
     if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
@@ -1515,7 +1505,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
       {
         //Counter Clockwise turn
         Cursor2--;
-        delay(20);//UI tuning. Makes the display user's interaction lees choppy.
+        delay(10);//UI tuning. Makes the display user's interaction lees choppy.
         if(Cursor2 < 1)
         {
           Cursor2 = 1;
@@ -1534,7 +1524,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
       {
         //Clockwise turn
         Cursor2++;
-        delay(20);//UI tuning. Makes the display user's interaction lees choppy.
+        delay(10);//UI tuning. Makes the display user's interaction lees choppy.
         if(Cursor2 > 3)
         {
           Cursor2 = 3;
@@ -1688,7 +1678,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
       if (digitalRead(encoderPinB) == LOW) 
       {
         //Counter Clockwise turn
-        newDigit--;                                 // What the user sees //
+        newDigit--;                               
         if(newDigit < 48)                           //====================//
         {                                           //CONTACT-1 0123456789//
           newDigit =57;                             //->STATUS: ACTIVE    //
@@ -1945,6 +1935,6 @@ void memoryTest()
   Serial.println(F(" bytes "));
   if (memory < threshold)
   {
-    sendSMS(urlHeaderArray, "To=%2b16158122833&", contactFromArray, "Body=Memory%20Alert%20Possible%20Leak\"\r");
+    sendSMS(urlHeaderArray, "To=%2b16158122833&", contactFromArray1, "Body=Memory%20Alert%20Possible%20Leak\"\r");
   }
 }
