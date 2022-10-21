@@ -1,5 +1,5 @@
-// squawkbox_v3.0.0 20 Oct 2022 @ 1630
-// continued going back through the code and fixing the comments. 
+// squawkbox_v3.0.0 21 Oct 2022 @ 1700
+// continued going back through the code and fixing the comments. ALL MOST DONE!!
 
 // GNU GENERAL PUBLIC LICENSE Version 2, June 1991
 
@@ -22,8 +22,7 @@
 #include <LibPrintf.h>         // MIT License
 #include <MemoryFree.h>        // GNU GENERAL PUBLIC LICENSE V2
 
-//#define PRINTF_DISABLE_ALL // Not working as advertised in the LibPrintf.h GutHub
-//#define printf(x...) // Deletes ALL prinf() functions in order to save SRAM amd make the production code faster/smoother. 
+//#define printf(...) // Deletes ALL prinf() functions. This saves SRAM / increases program speed. 
 
 //Customer activated contact # ON/OFF definitons
 #define ACTIVE 1
@@ -1294,18 +1293,18 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
             {
               lcd.setCursor(2,i);
               lcd.print(MainScreen[i]);
-            }
+            }                                     //MAIN MENU//
           }                                  //====================//
           lcd.setCursor(0,Cursor + 1);       //->Fault History     // 
-          lcd.print(" ");                    //->Contact 1         //
+          lcd.print(" ");                    //->Contact 1         // Page 1
           lcd.setCursor(1,Cursor + 1);       //->Contact 2         //
           lcd.print(" ");                    //->Contact 3         //
-          lcd.setCursor(0,Cursor);           //->Contact 4         //
-          lcd.print("-");                    //->Contact 5         //
-          lcd.setCursor(1,Cursor);           //->Contact 6         //  
-          lcd.print(">");                    //->EXIT              //
-        }                                    //====================//
-        else
+          lcd.setCursor(0,Cursor);           //====================//
+          lcd.print("-");                    //->Contact 4         //
+          lcd.setCursor(1,Cursor);           //->Contact 5         // Page 2
+          lcd.print(">");                    //->Contact 6         //
+        }                                    //->EXIT              //
+        else                                 //====================//
         {
           lcd.setCursor(0,Cursor - 3);
           lcd.print(" ");
@@ -1431,13 +1430,13 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
 
   if(userInput && userInput2 && faultHistory)
   { 
-    n = digitalRead(encoderPinA);
-    if ((encoderPinALast == LOW) && (n == HIGH)) 
-    {
-      if (digitalRead(encoderPinB) == LOW) 
-      {
-        //Counter Clockwise turn
-        EEPROMalarmPrint(Cursor, -1);
+    n = digitalRead(encoderPinA);                             //FAULT HISTORY MENU//
+    if ((encoderPinALast == LOW) && (n == HIGH))             //====================//
+    {                                                        //SAVED ALARM: 1      //
+      if (digitalRead(encoderPinB) == LOW)                   //Open Fault Memory   //
+      {                                                      //Date: 1111/11/11    //
+        //Counter Clockwise turn                             //Time: 11:11:11      //
+        EEPROMalarmPrint(Cursor, -1);                        //====================//
       } 
       else
       {
@@ -1468,7 +1467,7 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
  //=====================================SUB MENU 2 CODE==========================================//
  //==============================================================================================//
 
-  switch(whichContactToEdit)
+  switch(whichContactToEdit)//depending on where the Cursor is when the user pushes the button
   {
     case 0:break;
     case 1: Contact_Edit_Menu(contact1, "to1.txt", contact1Address, contact1Status, "CONTACT-1");
@@ -1488,7 +1487,7 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
 }
 
 void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACTSTATUS, char CONTACTNAME[])
-{
+{//Displays the Contact Edit Menu to the LCD based on what the user chose. 
   static unsigned long LCDdebounce2{};
   static bool LCDTimerSwitch2 {false};
   static int debounceDelay2{350};
@@ -1496,7 +1495,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
   static int encoderPinALast2 {LOW}; 
   static int n2 {LOW};
   
-  if(userInput && userInput2 && !faultHistory)// I dont think this if statement is needed
+  if(userInput && userInput2 && !faultHistory)// I dont think this if statement is needed the only way this function gets called is in the above function. 
   { 
     n2 = digitalRead(encoderPinA);
     if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
@@ -1512,13 +1511,13 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
           delay(10);//UI tuning. Makes the display user's interaction lees choppy. 
         }
         lcd.setCursor(0,Cursor2 + 1);
-        lcd.print(" ");
-        lcd.setCursor(1,Cursor2 + 1);
-        lcd.print(" ");
-        lcd.setCursor(0,Cursor2);
-        lcd.print("-");
-        lcd.setCursor(1,Cursor2);
-        lcd.print(">");
+        lcd.print(" ");                                                            //Contact Edit Menu//
+        lcd.setCursor(1,Cursor2 + 1);                                             //====================//
+        lcd.print(" ");                                                           //CONTACT-1 1234567890//
+        lcd.setCursor(0,Cursor2);                                                 //->STATUS: ACTIVE    //
+        lcd.print("-");                                                           //  EDIT#             //
+        lcd.setCursor(1,Cursor2);                                                 //  EXIT              //
+        lcd.print(">");                                                           //====================//
       } 
       else 
       {
@@ -1550,7 +1549,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
     if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
     { 
       LCDTimerSwitch2 = false;
-      if(Cursor2 == 1)// TURN CONTACT ON/OFF
+      if(Cursor2 == 1)// TURN CONTACT ACTIVE/INACTIVE
       {
         CONTACTSTATUS = !CONTACTSTATUS;
         EEPROM_Save_Contact_Status(ADDRESS, CONTACTSTATUS);
@@ -1578,7 +1577,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         Contact_Edit_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
         userInput3 = true;
       }
-      else if(Cursor2 == 3)//EXIT CONTACT
+      else if(Cursor2 == 3)//EXIT CONTACT EDIT MENU back to MAIN menu
       {
         userInput3 = false;
         userInput2 = false;
@@ -1592,11 +1591,15 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
   //==============================CONTACT NUMBER EDITING CODE=====================================//
   //==============================================================================================//
  
-  while(userInput3)
-  {
+  while(userInput3)/*Entering this while loop prevents the SquawkBox from being able to recognize boiler faults.
+                     This was done so that the small amount of time that the user is actually changing a phone #
+                     he wont get kicked out of the process by a boiler fault. Since this is the case a timer was 
+                     created so that if this screen is left open, it will time out and default back to the Fault 
+                     screen after 180sec.*/
+  {                 
     static int i {};
     static bool timerSwitch {false};
-    static const unsigned long threemintimer {180000};  
+    static const unsigned long threemintimer {180000};  //this timer turns off the editing display if left open
     static unsigned long difference6 {};
     static unsigned long timerStart {};
     if (timerSwitch == false)
@@ -1607,7 +1610,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
     
     difference6 = millis() - timerStart;
     
-    if (difference6 > threemintimer)      //IF TIMER IS UP
+    if (difference6 > threemintimer)      //IF TIMER IS UP go back to the default screen
     {
       timerSwitch = false;
       userInput4 = false;
@@ -1618,12 +1621,12 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
       lcd.setCursor(4,1);
       lcd.print("TIME OUT");
       lcd.noBlink();
-      delay(5000);
+      delay(3000);
       User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
       break;
     }
     static bool Switch {false};
-    static const unsigned int oneSecTimer {1000};  
+    static const unsigned int oneSecTimer {1000};  //This timer helps reprint and refresh the portion of the LCD that actually displays the timer. 
     static unsigned long difference7 {};
     static unsigned long Start {};
     
@@ -1656,12 +1659,12 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         lcd.setCursor(16,2);
         lcd.print(counter);
       }
-      if(counter == 99)
+      if(counter == 99) //Prevents the screen from showing "099" and prints "99" instead
       {
         lcd.setCursor(18,2);
         lcd.print(" ");
       }
-      if(counter == 9)
+      if(counter == 9)//Prevents the screen from showing "009" and prints "9" instead
       {
         lcd.setCursor(17,2);
         lcd.print(" ");
@@ -1673,17 +1676,17 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
     //if(newContact[10] != '\0')newContact[10] = '\0';
     static char newDigit{48};
     n2 = digitalRead(encoderPinA);
-    if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
-    {
+    if ((encoderPinALast2 == LOW) && (n2 == HIGH))//Increment the new digit when the rotary encoder is turned.
+    {                                             //Display new digit to the screen.
       if (digitalRead(encoderPinB) == LOW) 
       {
-        //Counter Clockwise turn
-        newDigit--;                               
+        //Counter Clockwise turn 
+        newDigit--;                              //CONTACT NUMBER EDITING MENU//
         if(newDigit < 48)                           //====================//
-        {                                           //CONTACT-1 0123456789//
-          newDigit =57;                             //->STATUS: ACTIVE    //
-        }                                           //  EDIT#             //
-        lcd.setCursor(Cursor2,1);                   //  EXIT              //
+        {                                           //CURRENT#  1234567890//
+          newDigit =57;                             //ENTER NEW#0|        // (|) = blikning cursor
+        }                                           //  SAVE#    TIME 180 //
+        lcd.setCursor(Cursor2,1);                   //  REDO#    EXIT     //
         lcd.print(newDigit);                        //====================// 
         lcd.setCursor(Cursor2,1);
       } 
@@ -1701,7 +1704,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
     }
     encoderPinALast2 = n2;
     
-    if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)
+    if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)//Save new digit into temp variable and Move cursor to the next number location.
     {
       LCDdebounce2 = millis();
       LCDTimerSwitch2 = true;
@@ -1718,17 +1721,17 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         {
           Cursor2 = 10;
         }
-        //static int i {}; THIS WAS REDECLARED HIGHER UP//////////////////////
-        newContact[i] = newDigit;
+        //static int i {}; THIS WAS REDECLARED HIGHER UP////////////////
+        newContact[i] = newDigit;//Save new digit into temp variable
         i++;
-        newDigit = 48; //ASCII '48' == 0
+        newDigit = 48; //ASCII '48' == 0 (defaults new LCD digit to 0)
         if(i < 10)
         {
           lcd.setCursor(Cursor2,1);
           lcd.print(newDigit);
           lcd.setCursor(Cursor2,1);
         }
-        if(i == 10)
+        if(i == 10)//User has entered 10 digits and is done with the new phone number, he now needs the SAVE/REDO screen
         {
           printf("Inside the if(i == 10) condition.\n");
           i = 0;
@@ -1740,10 +1743,10 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
           lcd.print(">");
           
     //=====================================================================================//          
-    //============================Saving New Contact Menu==================================//  
+    //============================SAVE/REDO New Number Menu==================================//  
     //=====================================================================================//  
     
-          while(userInput4)
+          while(userInput4)//User is now told to SAVE / REDO / EXIT the menu
           {
             difference6 = millis() - timerStart;
             
@@ -1753,12 +1756,12 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
               userInput4 = false;
               userInput3 = false;
               Cursor2 = 1;
-              i = 0;
+              i = 0;// not needed?
               lcd.clear();
               lcd.setCursor(4,1);
               lcd.print("TIME OUT");
               lcd.noBlink();
-              delay(5000);
+              delay(3000);
               User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
               break;
             }
@@ -1794,25 +1797,23 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                 lcd.setCursor(16,2);
                 lcd.print(counter);
               }
-              //lcd.blink();
-              //lcd.setCursor(Cursor2,1);
             }
             static int selector{};
-            if(!stopRotaryEncoder)
+            if(!stopRotaryEncoder)//I dont think this "stopRotaryEncoder" does what I wanted it to do. 
             {
-              delay(50);
+              //delay(20);
               n2 = digitalRead(encoderPinA);
               if ((encoderPinALast2 == LOW) && (n2 == HIGH)) 
               {
                 if (digitalRead(encoderPinB) == LOW) 
                 {
                   //Counter Clockwise turn
-                  selector--;
+                  selector--;                      //CONTACT NUMBER SAVE/REDO MENU//
                   delay(20);                          //====================//
-                  if(selector < 0)                    //CURRENT#  0000000000//
-                  {                                   //ENTER NEW#          //
-                    selector = 2;                     //->SAVE     TIME 180 //
-                  }                                   //  REDO     EXIT     //
+                  if(selector < 0)                    //CURRENT#  1234567890//
+                  {                                   //ENTER NEW#6158122833//
+                    selector = 2;                     //->SAVE#    TIME 180 //
+                  }                                   //  REDO#    EXIT     //
                 }                                     //====================//
                 else //Clockwise turn
                 {
@@ -1844,7 +1845,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
               encoderPinALast2 = n2;
             }
             
-            if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)
+            if(digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)//user has now chosen SAVE / REDO / or EXIT
             {
               stopRotaryEncoder = true;
               LCDdebounce2 = millis();
