@@ -1,16 +1,20 @@
-// squawkbox_v3.0.0 21 Oct 2022 @ 1700
-// continued going back through the code and fixing the comments. ALL MOST DONE!!
+// squawkbox_v3.0.0 28 Oct 2022 @ 1015
 
-// GNU GENERAL PUBLIC LICENSE Version 2, June 1991
+//WHAT GOT DONE TODAY:
+// continued going back through the code and fixing the comments.DONE!!
+// Made an RTC function to clean up the setup(). and added commments for startup of RTC
+// Confirmed that sprintf() does NOT get #define(d) out when making production code. 
+
 
 // TODO:
-// Add functions for Pump amps() / Aw Na box() / any others???
+// Add functions for Pump amps() / Aw Na box() / Blow down aquastat()
 // Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
 // Display blowdown reminder after 48 hours of no PLWCO.
 // Send blow down text after 72 hours of no PLWCO.
-// Make an RTC function to clean up the setup().
 // Add function to send a Flame signal text message.
 // Prompt when all contacts are inactive.
+
+// GNU GENERAL PUBLIC LICENSE Version 2, June 1991
 
                                // Library licensing information  //
 //#include <Arduino.h>         // GNU Lesser General Public    // Included automatically by the Arduino IDE. 
@@ -22,7 +26,7 @@
 #include <LibPrintf.h>         // MIT License
 #include <MemoryFree.h>        // GNU GENERAL PUBLIC LICENSE V2
 
-//#define printf(...) // Deletes ALL prinf() functions. This saves SRAM / increases program speed. 
+#define printf(...) // Deletes ALL prinf() functions. This saves SRAM / increases program speed. 
 
 //Customer activated contact # ON/OFF definitons
 #define ACTIVE 1
@@ -156,32 +160,7 @@ void setup()
   Serial.begin(9600);
   Serial1.begin(19200);
   printf("This is squawkbox V3.LCD.0 sketch.\n");
-  if (! rtc.begin()) 
-  {
-    printf("Couldn't find RTC.\n");
-    Serial.flush();
-    //Needs a function to send an SMS to notify/ (Not sure what this will do to the rest of the program if this fails??) Needs to be tested
-  }
-  if (! rtc.initialized() || rtc.lostPower()) 
-  {
-    printf("RTC is NOT initialized, let's set the time!\n");
-    // When time needs to be set on a new device, or after a power loss, the
-    // following line sets the RTC to the date & time this sketch was compiled
-                // Note: allow 2 seconds after inserting battery or applying external power
-                // without battery before calling adjust(). This gives the PCF8523's
-                // crystal oscillator time to stabilize. If you call adjust() very quickly
-                // after the RTC is powered, lostPower() may still return true.
-    delay(3000);
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));  
-  }
-  rtc.start();
-
-  lcd.init(); 
-  lcd.backlight();
-  lcd.begin(20, 4); // Initialize LCD screen (columns, rows)
-  lcd.setCursor(2, 1);
-  lcd.print("AB3D Squawk Box");
-  delay(2000);// Allows LCD screen to be visualized
+  initialize_LCD();
   
   pinMode(low1, INPUT);
   pinMode(low2, INPUT);
@@ -198,27 +177,18 @@ void setup()
   pinMode (encoderPinA, INPUT);
   pinMode (encoderPinB, INPUT);
   pinMode (pushButton, INPUT_PULLUP);
-
-  node.begin(1, Serial);
-  node.preTransmission(preTransmission);
-  node.postTransmission(postTransmission);
-
-  lcd.clear();
-  lcd.setCursor(2, 1);
-  lcd.print("Initializing SIM");
-  lcd.setCursor(7, 2);
-  lcd.print("Module");
+  
   SIMboot();
   boot_SD();
   EEPROM_Prefill();
   loadContacts();
-  printf("Contacts Loaded.  Booting SIM module.  Initiating wakeup sequence...\n");
   initiateSim();
-  lcd.clear();
-  lcd.noBacklight();
-  Serial.print(F("Free RAM = "));
+  initialize_RTC();
+  initialize_Modbus();
+  
+  Serial.print(F("Set-up Free RAM = "));
   Serial.println(freeMemory());
-  printf("Setup() Function complete. Entering Main Loop() Function.\n");
+  printf("Setup() complete. Entering Main Loop().\n");
 }
 
 
@@ -840,6 +810,7 @@ void boot_SD() //see if the card is present and can be initialized
 
 void loadContacts()//Pull customer and Squawk phone numbers from the SD card and load them into the local variables
 {
+  printf("Loading contacts now.\n");
   fill_from_SD("from1.txt", contactFromArray1);
   printf("From number is: ");
   Serial.println(contactFromArray1);
@@ -1867,20 +1838,20 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                   timerSwitch = false;
                   char confirmContact[15]{"To="};
                   strcpy(CONTACT,newContact);
-                  strcat(confirmContact,newContact);
+                  strcat(confirmContact,newContact);//preping for alert SMS below
                   confirmContact[13] = '&';
                   confirmContact[14] = '\0';
                   Save_New_Contact(txtDOC, CONTACT);
-                  strcpy(conToTotalArray,"To=");
-                  loadContacts();
+                  strcpy(conToTotalArray,"To=");//reset contact array so that the new contact can replace the old one. 
+                  loadContacts();//now we have to reload the new data on the SD card into the local contact array. 
                   userInput4 = false;
                   userInput3 = false;
                   Cursor2 = 1;
                   sendSMS(urlHeaderArray, confirmContact, contactFromArray1, "Body=Contact%20Changed\"\r");
                   User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
-                  delay(20);
+                  delay(10);
                 }
-                else if(selector == 1)//REDO NEW CONTACT
+                else if(selector == 1)//REDO NEW CONTACT reset screen to try again
                 {
                   userInput4 = false;
                   lcd.setCursor(0,2);
@@ -1906,12 +1877,12 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
   } 
 }
 
-void EEPROM_Save_Contact_Status(int ADDRESS, bool CONTACTSTATUS)
+void EEPROM_Save_Contact_Status(int ADDRESS, bool CONTACTSTATUS)//changes contact between ACTIVE or INACTIVE in EEPROM
 {
   EEPROM.write(ADDRESS,CONTACTSTATUS);
 }
 
-void Save_New_Contact(char txtDOC[], char NEWCONTACT[])
+void Save_New_Contact(char txtDOC[], char NEWCONTACT[])//Saves what the user input was for the new contact to the SD card
 {
   printf("Save_New_Contact().\n");
   myFile = SD.open(txtDOC, O_WRITE);
@@ -1938,4 +1909,62 @@ void memoryTest()
   {
     sendSMS(urlHeaderArray, "To=%2b16158122833&", contactFromArray1, "Body=Memory%20Alert%20Possible%20Leak\"\r");
   }
+}
+
+void initialize_RTC()
+{//consider using a digital pin to power the RTC instead of the 5V output pin. 
+ //This would prevent a special procedure from being followed when DEV is happening. 
+
+ /*PROCEDURE: Load sketch onto Mega withOUT a battery in the RTC. If the RTC has not been 
+  * initialized then you should be able to install the battery immediately after the sketch 
+  * has been loaded. If the RTC HAS been previously initialized you will need to power down 
+  * the Squawk for 20sec then power it back up. This will force recognition of an RTC power 
+  * loss and initialize the time to the sketch that was just uploaded. */
+  
+  printf("Initializing Real Time Clock.\n");
+  if (! rtc.begin()) 
+  {
+    printf("Couldn't find RTC.\n");
+    Serial.flush();
+    //Needs a function to send an SMS to notify/(Not sure what this will do to the EEPROM save function if this fails??) Needs to be tested
+  }
+  if (! rtc.initialized() || rtc.lostPower()) 
+  {
+    printf("RTC is NOT initialized, let's set the time!\n");
+    // When time needs to be set on a new device, or after a power loss, the
+    // following line sets the RTC to the date & time this sketch was compiled
+                // Note: allow 2 seconds after inserting battery or applying external power
+                // without battery before calling adjust(). This gives the PCF8523's
+                // crystal oscillator time to stabilize. If you call adjust() very quickly
+                // after the RTC is powered, lostPower() may still return true.
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.backlight();
+    lcd.print("TIME SET TO DEFAULT"); 
+    lcd.setCursor(0, 2); 
+    lcd.print("TIME NOW INACCURATE");
+    //add in an SMS alert here to call Allied Boiler
+    delay(5000);
+  }
+  rtc.start();
+}
+
+void initialize_Modbus()
+{
+  node.begin(1, Serial);
+  node.preTransmission(preTransmission);
+  node.postTransmission(postTransmission);
+}
+
+void initialize_LCD()
+{
+  lcd.init(); 
+  lcd.begin(20, 4); // Initialize LCD screen (columns, rows)
+  lcd.clear();
+  lcd.backlight();
+  lcd.setCursor(2, 1);
+  lcd.print("SQUAWKBOX STARTUP");
+  lcd.setCursor(5, 2);
+  lcd.print("PLEASE WAIT");
 }
