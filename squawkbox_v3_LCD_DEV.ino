@@ -1,7 +1,7 @@
-// squawkbox_v3.0.0 28 Oct 2022 @ 1030
+// squawkbox_v3.0.0 28 Oct 2022 @ 1300
 
 //WHAT GOT DONE TODAY:
-// spell check of comments
+// Started porting over V_1 code. left off @ SMSRequest().
 
 
 // TODO:
@@ -42,6 +42,8 @@ const int low2 {6};         //to screw terminal
 const int alarmPin {4};     //to screw terminal //honeywell alarm terminal (terminal 3 on honeywell programmer)
 const int hplcIN {14};      //to screw terminal
 const int hplcOUT {15};     //to screw terminal
+//const int gasINpin {8};     //to screw terminal
+//const int gasOUTpin {7};    //to screw terminal
 const int MAX485_DE {3};    //to modbus module
 const int MAX485_RE_NEG {2};//to modbus module
 const int SIMpin {A3};      // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
@@ -70,6 +72,7 @@ static bool PLWCOSent{};
 static bool SLWCOSent{};
 static bool HWAlarmSent{};
 static bool hlpcSent{};
+//static bool gasSent{};
 
 static char urlHeaderArray[100]; // Twilio end point URL (twilio might change this!) AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?
 static char contactFromArray1[25];// holds the phone number to receive  text messages
@@ -187,6 +190,7 @@ void setup()
   Serial.print(F("Set-up Free RAM = "));
   Serial.println(freeMemory());
   printf("Setup() complete. Entering Main Loop().\n");
+  memoryTest();
 }
 
 
@@ -204,6 +208,7 @@ void loop()
   secondary_LW();
   Honeywell_alarm();
   HLPC();
+  //gasPressure();
   timedmsg();
   SMSRequest();
   User_Input_Access_Menu();
@@ -469,6 +474,7 @@ void primary_LW()
       printf("EEPROM() function Primary Low Water complete.\n");
       Data_Logger(PrimaryString);
       printf("Data_Logger(PrimaryString)function complete.\n");
+      memoryTest();
       PLWCOSent = 1;
     }
     else printf("%lu\n",difference); 
@@ -512,6 +518,7 @@ void secondary_LW()
       printf("EEPROM() function 2nd Low Water complete.\n");
       Data_Logger(SecondaryString);
       printf("Data_Logger(SecondaryString)function complete.\n");
+      memoryTest();
       SLWCOSent = 1;
     }
     if (difference2 < debounceInterval)
@@ -561,6 +568,7 @@ void Honeywell_alarm()
       printf("EEPROM() function FSG Alarm complete.\n");
       Data_Logger(AlarmString);
       printf("Data_Logger(AlarmString)function complete.\n");
+      memoryTest();
       HWAlarmSent = 1;
     }
     if (difference3 < debounceInterval)
@@ -607,6 +615,7 @@ void HLPC()
       printf("EEPROM() function High Limit complete.\n");
       Data_Logger(hlpcString);
       printf("Data_Logger(hlpcString)function complete.\n");
+      memoryTest();
       hlpcSent = 1;
     }
     if (difference4 < debounceInterval)
@@ -624,6 +633,52 @@ void HLPC()
   }
 }
 
+// void gasPressure()//NOT TESTED!!!
+// {
+//   static bool alarmSwitch5 {false};
+//   static bool gasIN{};
+//   static bool gasOUT{};
+//   static unsigned long difference5 {};
+//   static unsigned long alarmTime5 {};
+//   gasIN = digitalRead(gasINpin);
+//   gasOUT = digitalRead(gasOUTpin);
+//   if ((gasIN == HIGH) && (gasOUT == LOW) && (gasSent == 0))
+//   {
+//     if (alarmSwitch5 == false)
+//     {
+//       alarmTime5 = millis();
+//       alarmSwitch5 = true;
+//       Serial.println(F("gasPressure() alarmSwitch5 is true"));
+//     }
+//     difference5 = millis() - alarmTime5;
+
+//     if ( difference5 >= debounceInterval)
+//     {
+//       Serial.println(F("Sending Gas Pressure alarm message"));
+//       sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Gas%20Pressure%20Alarm\"\r");
+//       Serial.println(F("message sent or simulated"));
+//       memoryTest();
+//       gasSent = 1;
+//     }
+//     if (difference5 < debounceInterval)
+//     {
+//       Serial.println(difference5);
+//       return;
+//     }
+//   }
+//   else
+//   {
+//     if (gasOUT && alarmSwitch5)
+//     {
+//       alarmSwitch5 = false;
+//       difference5 = 0;
+//       alarmTime5 = 0;
+//       gasSent = 0;
+//       return;
+//     }
+//   }
+// }
+
 void sendSMS(char URL[], char to[], char from[], char body[])//SIM7000A module
 {
   char finalURL[250] = "";
@@ -633,19 +688,20 @@ void sendSMS(char URL[], char to[], char from[], char body[])//SIM7000A module
   strcat(finalURL, body);
   Serial.println(finalURL);
   delay(20);
-  Serial1.print("AT+HTTPTERM\r");
+  Serial1.print("AT+HTTPTERM\r"); //Terminate HTTP service
   delay(1000);
-  Serial1.print("AT+SAPBR=3,1,\"APN\",\"super\"\r");
+  Serial1.print("AT+SAPBR=3,1,\"APN\",\"super\"\r"); //SAPBR = Bearer settings for applications based on IP / 3 = Set bearer parameters
+  //1 = Bearer is connected / "APN" Access point name string: maximum 64 characters / super = required by Twilio.
   delay(300);
-  Serial1.print("AT+SAPBR=1,1\r");
+  Serial1.print("AT+SAPBR=1,1\r");//SAPBR=1 = Open bearer
   delay(1000);
-  Serial1.print("AT+HTTPINIT\r");
+  Serial1.print("AT+HTTPINIT\r");//Initialize HTTP service HTTPINIT should first be executed to initialize the HTTP service.
   delay(100);
-  Serial1.print("AT+HTTPPARA=\"CID\",1\r");
+  Serial1.print("AT+HTTPPARA=\"CID\",1\r");//Set HTTP parameters value "CID" (Mandatory Parameter) Bearer profile identifier
   delay(100);
   Serial1.println(finalURL);
   delay(100);
-  Serial1.print("AT+HTTPACTION=1\r");
+  Serial1.print("AT+HTTPACTION=1\r");//HTTP method action 1 = POST
   delay(4000);
 }
 
@@ -663,7 +719,7 @@ void sendSMS(char URL[], char to[], char from[], char body[])//SIM7000A module
 void timedmsg() // daily timer message to ensure Squawk is still operational. For testing ONLY (REMOVE FROM PRODUCTION CODE)
 {
   static bool msgswitch {false};
-  static const unsigned long dailytimer {86400000};  
+  static const unsigned long dailytimer {43200000};  
   static unsigned long difference5 {};
   static unsigned long msgtimer1 {};
   if (msgswitch == false)
