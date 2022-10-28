@@ -1,9 +1,7 @@
-// squawkbox_v3.0.0 28 Oct 2022 @ 1015
+// squawkbox_v3.0.0 28 Oct 2022 @ 1030
 
 //WHAT GOT DONE TODAY:
-// continued going back through the code and fixing the comments.DONE!!
-// Made an RTC function to clean up the setup(). and added commments for startup of RTC
-// Confirmed that sprintf() does NOT get #define(d) out when making production code. 
+// spell check of comments
 
 
 // TODO:
@@ -28,11 +26,11 @@
 
 #define printf(...) // Deletes ALL prinf() functions. This saves SRAM / increases program speed. 
 
-//Customer activated contact # ON/OFF definitons
+//Customer activated contact # ON/OFF definitions
 #define ACTIVE 1
 #define INACTIVE 0
 
-//Rotary encoder definitons
+//Rotary encoder definitions
 #define CW 1
 #define CCW -1
 #define PUSH_BUTTON 0
@@ -74,8 +72,8 @@ static bool HWAlarmSent{};
 static bool hlpcSent{};
 
 static char urlHeaderArray[100]; // Twilio end point URL (twilio might change this!) AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?
-static char contactFromArray1[25];// holds the phone number to recieve text messages
-static char conToTotalArray[60] {"To="};// holds the customer phone numbers that will recieve text messages
+static char contactFromArray1[25];// holds the phone number to receive  text messages
+static char conToTotalArray[60] {"To="};// holds the customer phone numbers that will receive  text messages
 
 // Bools used to maintain LCD screen until the user presses the button to go to the next screen
 static bool userInput{};
@@ -149,7 +147,7 @@ ModbusMaster node;
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 File myFile; 
 RTC_PCF8523 rtc;
-// consider DateTime now = rtc.now() instansiation only once in the loop??? Heap frag concerns??
+// consider DateTime now = rtc.now() instantiation only once in the loop??? Heap frag concerns??
 
 //=======================================================================//
 //================================SETUP()================================//
@@ -259,7 +257,7 @@ void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)// Print save
       SavedAlarmCounter = 1;
     }
   }
-  else if (encoderTurnDirection == CCW)//User tunred the dial CounterClockWise
+  else if (encoderTurnDirection == CCW)//User turned the dial CounterClockWise
   {
     outputCounter += eepromAlarmDataSize;
     SavedAlarmCounter--;
@@ -277,7 +275,7 @@ void EEPROMalarmPrint(int& outputCounter, int encoderTurnDirection)// Print save
   // Recycle the EEPROM address (outputCounter) in a loop fashion
   if(outputCounter < 0)
   {
-    outputCounter = eepromAlarmDataSize * (numberOfSavedFaults - 1); //The inputCounter recyles when it gets to numberOfSavedFaults, so that exact address never actually gets used, hence the - 1.
+    outputCounter = eepromAlarmDataSize * (numberOfSavedFaults - 1); //The inputCounter recycles when it gets to numberOfSavedFaults, so that exact address never actually gets used, hence the - 1.
   }
   if(outputCounter == (eepromAlarmDataSize * numberOfSavedFaults)) 
   {
@@ -777,7 +775,7 @@ void boot_SD() //see if the card is present and can be initialized
         myFile.close();
         printf("SD Card initialization complete.\n");
       }
-      else //if CSV file was already initialized then DataLog that a reset occured.
+      else //if CSV file was already initialized then DataLog that a reset occurred.
       {
         DateTime now = rtc.now();
         myFile.print("SystemRESET");
@@ -815,7 +813,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
   printf("From number is: ");
   Serial.println(contactFromArray1);
   fill_from_SD("to1.txt", contact1);
-  if (contact1[0] > 0 && contact1Status) // maybe do if (contact1[0] > 48 && contact1[0] < 58 && contact1Status) ASCII will check for an actual phon number
+  if (contact1[0] > 0 && contact1Status) // maybe do if (contact1[0] > 48 && contact1[0] < 58 && contact1Status) ASCII will check for an actual phone number
   {
     strcat(conToTotalArray, contact1);
   }
@@ -923,7 +921,7 @@ void fill_from_SD(char file_name[], char CONTACT[])
 }
 
 void preTransmission() // user designated action required by the MODBUS library
-{                      // writing these terminals to HIGH / LOW tells the RS-485 board to send or recieve
+{                      // writing these terminals to HIGH / LOW tells the RS-485 board to send or receive 
   digitalWrite(MAX485_RE_NEG, 1);
   digitalWrite(MAX485_DE, 1);
 }
@@ -1041,7 +1039,7 @@ void initiateSim()// ALL DELAYS ARE NECESSARY
   Serial1.print("AT+SAPBR=1,1\r");
   delay(2000);
   Serial1.print("AT+CMGD=0,4\r"); //this line deletes any existing text messages to ensure
-                                  //that the message space is empy and able to accept new messages
+                                  //that the message space is empty and able to accept new messages
   delay(100);
   Serial1.print("AT+CMGF=1\r");
   delay(100);
@@ -1226,14 +1224,14 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
     LCDdebounce = millis();
     LCDTimerSwitch = true;
   }
-  /*  Once userInput has been recieved and the debounce time has passed we ! the userInput bool and turn 
-   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is recieved.*/
+  /*  Once userInput has been receive d and the debounce time has passed we ! the userInput bool and turn 
+   *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is receive d.*/
   if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && !userInput && !userInput2)
   {
     delay(50);//not needed?
     userInput = true;
     LCDTimerSwitch = false;
-    printf("User Input Recieved ON.\n");
+    printf("User Input receive d ON.\n");
     Cursor = 0;//this line not needed?
     User_Input_Main_Screen(Cursor);//change to take no arguments and default cursor to 0 in the body of the function?
   }
@@ -1242,7 +1240,7 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
   *  encoder input from the user in order to traverse and LCD display.*/
   if(userInput && !userInput2)//change and log the position of the cursor on the MAIN screen
   {
-    n = digitalRead(encoderPinA); // make into a funciton with the number of lines as a parameter
+    n = digitalRead(encoderPinA); // make into a function with the number of lines as a parameter
     if ((encoderPinALast == LOW) && (n == HIGH)) 
     {
       if (digitalRead(encoderPinB) == LOW) 
@@ -1655,7 +1653,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         newDigit--;                              //CONTACT NUMBER EDITING MENU//
         if(newDigit < 48)                           //====================//
         {                                           //CURRENT#  1234567890//
-          newDigit =57;                             //ENTER NEW#0|        // (|) = blikning cursor
+          newDigit =57;                             //ENTER NEW#0|        // (|) = blinking cursor
         }                                           //  SAVE#    TIME 180 //
         lcd.setCursor(Cursor2,1);                   //  REDO#    EXIT     //
         lcd.print(newDigit);                        //====================// 
@@ -1838,7 +1836,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                   timerSwitch = false;
                   char confirmContact[15]{"To="};
                   strcpy(CONTACT,newContact);
-                  strcat(confirmContact,newContact);//preping for alert SMS below
+                  strcat(confirmContact,newContact);//prepping for alert SMS below
                   confirmContact[13] = '&';
                   confirmContact[14] = '\0';
                   Save_New_Contact(txtDOC, CONTACT);
