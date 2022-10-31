@@ -1,10 +1,7 @@
-// squawkbox_v3.0.0 31 Oct 2022 @ 1420
+// squawkbox_v3.0.0 31 Oct 2022 @ 1430
 
-// WHAT GOT DONE TODAY:
-// Finished porting over V_1 code.
-// Removed some magic constants.
-// Finisheed AT-command comments.
-// Added in code to remove a ',' if there is one at the front of the conToTotalArray[]. and tested in separate sketch. 
+// WHAT GOT DONE:
+// Added in TODO comments. 
 
 
 // TODO **PRIORITY**:
@@ -12,6 +9,9 @@
 // Field Deploy for testing
 
 // TODO **BACK BURNER**:
+// *BUG* Holding down the pushbutton freaks it out. *FIX* add in another check to the if statement. digitalRead(pushbutton == HIGH (notBeingPushed)).
+// Remove rotary encoder bool, not useful I dont think. 
+// add in enum ScreenName to replace userInput bools. 
 // Standardize function and variable names.
 // Optimize variables.
 // Add functions for Pump amps() / Aw Na box() / Blow down aquastat().
