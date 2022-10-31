@@ -1,11 +1,20 @@
-// squawkbox_v3.0.0 28 Oct 2022 @ 1300
+// squawkbox_v3.0.0 31 Oct 2022 @ 1420
 
-//WHAT GOT DONE TODAY:
-// Started porting over V_1 code. left off @ SMSRequest().
+// WHAT GOT DONE TODAY:
+// Finished porting over V_1 code.
+// Removed some magic constants.
+// Finisheed AT-command comments.
+// Added in code to remove a ',' if there is one at the front of the conToTotalArray[]. and tested in separate sketch. 
 
 
-// TODO:
-// Add functions for Pump amps() / Aw Na box() / Blow down aquastat()
+// TODO **PRIORITY**:
+// Test
+// Field Deploy for testing
+
+// TODO **BACK BURNER**:
+// Standardize function and variable names.
+// Optimize variables.
+// Add functions for Pump amps() / Aw Na box() / Blow down aquastat().
 // Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
 // Display blowdown reminder after 48 hours of no PLWCO.
 // Send blow down text after 72 hours of no PLWCO.
@@ -48,6 +57,7 @@ const int MAX485_DE {3};    //to modbus module
 const int MAX485_RE_NEG {2};//to modbus module
 const int SIMpin {A3};      // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
 //SerialPort #1 (Serial1) Default is pin19 RX1 and pin18 TX1 on the Mega. These are how the SIM7000A module communicates with the mega.
+uint8_t SD_CSpin {53};
 
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 const int PLWCOoutletPin {17};
@@ -76,7 +86,7 @@ static bool hlpcSent{};
 
 static char urlHeaderArray[100]; // Twilio end point URL (twilio might change this!) AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?
 static char contactFromArray1[25];// holds the phone number to receive  text messages
-static char conToTotalArray[60] {"To="};// holds the customer phone numbers that will receive  text messages
+static char conToTotalArray[60] {"To=%2b1"};// holds the customer phone numbers that will receive  text messages
 
 // Bools used to maintain LCD screen until the user presses the button to go to the next screen
 static bool userInput{};
@@ -127,6 +137,18 @@ enum EEPROMAlarmCode // Used to encode which alarm is to be saved into the EEPRO
   HighLimit
 };
 
+// enum ScreenName // Encodes the value for which screen to display. Replaces the use of "UserInput" bools. NOT TESTED
+// {
+//    Home,
+//    MainMenu,
+//    FaultHistory,
+//    ContactMenu,
+//    ContactEdit,
+//    ContactDecide 
+// };
+// ScreenName currentscreen {Home};
+
+
 //EEPROM variables
 const int numberOfSavedFaults {400};
 const int eepromAlarmDataSize = sizeof(alarmVariable); 
@@ -145,9 +167,13 @@ const int contact5Address {3805};
 const int contact6Address {3806};
 
 //================INSTANTIATION================//
+uint8_t LCD_I2C_Address {0x3F};
+uint8_t LCD_Columns {20};
+uint8_t LCD_Rows {4};
+uint8_t Honeywell_Modbus_Address {1};
 
 ModbusMaster node;
-LiquidCrystal_I2C lcd(0x3F, 20, 4);
+LiquidCrystal_I2C lcd(LCD_I2C_Address, LCD_Columns, LCD_Rows);
 File myFile; 
 RTC_PCF8523 rtc;
 // consider DateTime now = rtc.now() instantiation only once in the loop??? Heap frag concerns??
@@ -736,42 +762,38 @@ void timedmsg() // daily timer message to ensure Squawk is still operational. Fo
   }
 }
 
-void SMSRequest()//Allows the customer to text the Squawk and receive responses.
+void SMSRequest()//Allows the customer to text the Squawk and receive responses. 
 {
-  char incomingChar {};
   if (Serial1.available() > 0) 
   {
-    incomingChar = Serial1.read();
-    if (incomingChar == 'C') 
+    char incomingChar = Serial1.read();
+    //printf("%c\n",incomingChar);
+    if (incomingChar == 'C' || incomingChar == 'c') 
     {
-      delay(100);
-      printf("%c\n",incomingChar);
+      delay(20);
       incomingChar = Serial1.read();
-      if (incomingChar == 'H') 
+      if (incomingChar == 'H' || incomingChar == 'h') 
       {
-        delay(100);
-        printf("%c\n", incomingChar);
+        delay(20);
         incomingChar = Serial1.read();
-        if (incomingChar == 'E') 
+        if (incomingChar == 'E' || incomingChar == 'e') 
         {
-          delay(100);
-          printf("%c\n",incomingChar);
+          delay(20);
           incomingChar = Serial1.read();
-          if (incomingChar == 'C') 
+          if (incomingChar == 'C' || incomingChar == 'c') 
           {
-            delay(100);
-            printf("%c\n",incomingChar);
+            delay(20);
             incomingChar = Serial1.read();
-            if (incomingChar == 'K') 
+            if (incomingChar == 'K' || incomingChar == 'k') 
             {
-              delay(100);
-              printf("%c\n",incomingChar);
-              printf("GOOD CHECK. SMS SYSTEMS ONLINE.\n");
-              printf("SENDING CHECK VERIFICATION MESSAGE.\n") ;
-              sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Good%20Check\"\r");
-              printf("Verification message sent.\n");
+              printf("GOOD CHECK. SMS SYSTEMS ONLINE. SENDING CHECK VERIFICATION MESSAGE.\n");
+              sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1,"Body=Communication%20verification%20confirmed\"\r");
+              printf("User verification message sent.\n");
               Serial1.print("AT+CMGD=0,4\r");
-              delay(100);
+              memoryTest();
+  //          Serial.print(F("SMS REQUEST Free RAM = "));
+  //          Serial.print(freeMemory());
+  //          Serial.println(F(" bytes."));
             }
           }
         }
@@ -813,10 +835,25 @@ void Data_Logger(const char FAULT[])//Saves boiler data to the SD card in CSV fo
 
 void boot_SD() //see if the card is present and can be initialized
 {
-  if (!SD.begin(10)) 
+  if (!SD.begin(SD_CSpin)) 
   {
     printf("***ERROR SD Card failed or not present.***\n");
-    // LCD display code for SD failure***********************************************************************
+    // LCD display code for SD failure*******************************************************
+    delay(5000);
+    for(int i = 0; i < 4; ++i)
+    {
+      if (!SD.begin(10)) 
+      {
+        Serial.println(F("SD Module initialization failed!"));// Change for every new one!!!!!!! hard codded in   vvvvvvvvvvvvvv
+        sendSMS("AT+HTTPPARA=\"URL\",\"http://relay-post-8447.twil.io/recipient_loop?", "To=%2b16158122833&", "From=%2b19049808059&", "Body=SD%20Module%20Initialization%20Fail\"\r");
+        delay(3000);
+      }
+      else
+      {
+        Serial.println(F("SD Module initialization done."));
+        break;
+      }
+    }
   }
   else
   {
@@ -865,18 +902,23 @@ void boot_SD() //see if the card is present and can be initialized
 void loadContacts()//Pull customer and Squawk phone numbers from the SD card and load them into the local variables
 {
   printf("Loading contacts now.\n");
+
+  //------load "from" number.  This is the number alert messages will apear to be from------//
   fill_from_SD("from1.txt", contactFromArray1);
   printf("From number is: ");
   Serial.println(contactFromArray1);
+
+  //------load "to" numbers.  These are the numbers alert messages will be sent to------//
   fill_from_SD("to1.txt", contact1);
   if (contact1[0] > 0 && contact1Status) // maybe do if (contact1[0] > 48 && contact1[0] < 58 && contact1Status) ASCII will check for an actual phone number
-  {
+  {                                      // we can also check the total length of the phone # to ensure it is the right size. 
     strcat(conToTotalArray, contact1);
   }
+
   fill_from_SD("to2.txt", contact2);
   if (contact2[0] > 0 && contact2Status) 
   {
-    if(conToTotalArray[3] == '\0')
+    if(conToTotalArray[3] == '\0')// We only want a "," if there is actually a number in the previous to#.txt file. 
     {
       strcat(conToTotalArray, contact2);
     }
@@ -886,6 +928,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
       strcat(conToTotalArray, contact2);
     }
   }
+
   fill_from_SD("to3.txt",contact3);
   if (contact3[0] > 0 && contact3Status) 
   {
@@ -899,6 +942,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
       strcat(conToTotalArray, contact3);
     }
   }
+
   fill_from_SD("to4.txt", contact4);
   if (contact4[0] > 0 && contact4Status) 
   {
@@ -912,6 +956,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
       strcat(conToTotalArray, contact4);
     }
   }
+
   fill_from_SD("to5.txt", contact5);
   if (contact5[0] > 0 && contact5Status) 
   {
@@ -925,6 +970,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
       strcat(conToTotalArray, contact5);
     }
   }
+
   fill_from_SD("to6.txt", contact6);
   if (contact6[0] > 0 && contact6Status) 
   {
@@ -938,11 +984,28 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
       strcat(conToTotalArray, contact6);
     }
   }
+
   strcat(conToTotalArray, "&");//format the "to" list of numbers for being in the URL by ending it with '&' so that next parameter can come after
   printf("The total contact list is: \n");
   Serial.println(conToTotalArray);
-  printf("fourth position character: ");
-  Serial.println(conToTotalArray[3]);
+  printf("eighth position character: ");
+  Serial.println(conToTotalArray[7]);
+  
+  //------Remove a ',' if there is one at the front of the array------//
+  if (conToTotalArray[7] == ',')
+  {
+    printf("Oops. Found a ',' where it soundnt be... Fixing NOW.\n");
+    char TEMPconToTotalArray[60] {"To=%2b1"};
+    for(int i = 8; conToTotalArray[i] != '\0'; i++)
+    {
+      TEMPconToTotalArray[i - 1] = conToTotalArray[i];
+    }
+    strcpy(conToTotalArray, TEMPconToTotalArray);    
+    printf("Corrected contact list: ");
+    Serial.println(conToTotalArray);
+  }
+
+  //------load URL.  This is the Twilio URL to the JSON junction ------//
   fill_from_SD("URL.txt", urlHeaderArray);
   printf("URL header is: ");
   Serial.println(urlHeaderArray);
@@ -959,7 +1022,7 @@ void fill_from_SD(char file_name[], char CONTACT[])
     {
       while (myFile.available())
       {
-        char c = myFile.read();  //gets one byte from serial buffer
+        char c = myFile.read();  //gets one byte from SPI buffer
         CONTACT[i] = c;
         i++;
       }
@@ -971,60 +1034,67 @@ void fill_from_SD(char file_name[], char CONTACT[])
   }
   else
   {
-    // if the file didn't open, print an error:
     printf("***ERROR opening SD contactTo file.***\n");
   }
 }
 
 void preTransmission() // user designated action required by the MODBUS library
 {                      // writing these terminals to HIGH / LOW tells the RS-485 board to send or receive 
-  digitalWrite(MAX485_RE_NEG, 1);
-  digitalWrite(MAX485_DE, 1);
+  digitalWrite(MAX485_RE_NEG, HIGH);
+  digitalWrite(MAX485_DE, HIGH);
 }
 
 void postTransmission() // user designated action required by the MODBUS library
 {
-  digitalWrite(MAX485_RE_NEG, 0);
-  digitalWrite(MAX485_DE, 0);
+  digitalWrite(MAX485_RE_NEG, LOW);
+  digitalWrite(MAX485_DE, LOW);
 }
 
-void readModbus() // getting FSG faults from the FSG // ALL DELAYS ARE NECESSARY
+void readModbus()// getting faults from the FSG // ALL DELAYS ARE NECESSARY
 {
-  printf("In the readModbus() function now.\n");
-  uint16_t result = node.readHoldingRegisters (0x0000, 1);
-
-  if (result == node.ku8MBSuccess) // ku8MBSuccess == 0x00
+  uint16_t result;
+  for (int i = 0; i < 5; ++i) 
   {
+    result = node.readHoldingRegisters (0x0000, 1);
+    delay(100);
+    if (result == node.ku8MBSuccess)
+    {
+      break;
+    }
+  }
+  delay(300);
+
+  if (result == node.ku8MBSuccess)
+  {
+    delay(300);
     int alarmRegister = node.getResponseBuffer(result);
-    printf("Register response:  ");
-    Serial.println(alarmRegister);
 
     switch (alarmRegister)
     {
       case  1: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code1%20No%20Purge%20Card\"\r");
-        break;
+               break;
       case 10: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code10%20PreIgnition%20Interlock%20Standby\"\r");
-        break;
+               break;
       case 14: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code14%20High%20Fire%20Interlock%20Switch\"\r");
-        break;
+               break;
       case 15: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code15%20Unexpected%20Flame\"\r");
-        break;
+               break;
       case 17: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code17%20Main%20Flame%20Failure%20RUN\"\r");
-        break;
+               break;
       case 19: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code19%20Main%20Flame%20Ignition%20Failure\"\r");
-        break;
+               break;
       case 20: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code20%20Low%20Fire%20Interlock%20Switch\"\r");
-        break;
+               break;
       case 28: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code28%20Pilot%20Flame%20Failure\"\r");
-        break;
+               break;
       case 29: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code29%20Lockout%20Interlock\"\r");
-        break;
+               break;
       case 33: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code33%20PreIgnition%20Interlock\"\r");
-        break;
+               break;
       case 47: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Code47%20Jumpers%20Changed\"\r");
-        break;
-      default: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Fault%20Check%20Fault%20Code\"\r");
-        break;
+               break;
+      default: sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=Check%20Fault%20Code\"\r");
+               break;
     }
   }
   else
@@ -1038,6 +1108,7 @@ void SIMboot()// ALL DELAYS ARE NECESSARY
   printf("Starting SIMboot().\n");
 //This function only boots the SIM module if it needs to be booted
 //This prevents nuisance SIM module power-downs upon Mega reboot
+//Writing SIMpin to HIGH will (! not) or (flip) the current ON/OFF state of the SIM module
   unsigned char sim_buffer {};
   for (int i = 0; i < 10; i++)
   {
@@ -1058,6 +1129,10 @@ void SIMboot()// ALL DELAYS ARE NECESSARY
     }
     else 
     {
+      // if(i == 9)
+      // {
+      //   LED_fault(); // Develop a function that runs a fault code LED blink
+      // }
       printf("SIM module appears to be off.  Attempting boot...\n");
       digitalWrite(SIMpin, HIGH);
       delay(3000);
@@ -1097,9 +1172,9 @@ void initiateSim()// ALL DELAYS ARE NECESSARY
   Serial1.print("AT+CMGD=0,4\r"); //this line deletes any existing text messages to ensure
                                   //that the message space is empty and able to accept new messages
   delay(100);
-  Serial1.print("AT+CMGF=1\r");
+  Serial1.print("AT+CMGF=1\r"); //Select SMS Message Format 1 = Text mode
   delay(100);
-  Serial1.print("AT+CNMI=2,2,0,0,0\r"); //
+  Serial1.print("AT+CNMI=2,2,0,0,0\r"); //New SMS Message Indications
   delay(100);
   sendSMS(urlHeaderArray, contactFromArray1, conToTotalArray, "Body=Setup%20Complete\"\r");
   delay(2000);
@@ -1162,21 +1237,21 @@ void EEPROM_Prefill()// EEPROM initialization function
   }
 }
 
-float get_flame_signal()
-{
-  uint16_t result = node.readHoldingRegisters (0x000A , 1);//As per the S7800A1146 Display manual 
-  if (result == node.ku8MBSuccess)
-  {
-    float flameSignal = node.getResponseBuffer(result);
-    flameSignal = map(flameSignal,0,105,0,5);//As per the S7800A1146 Display manual 
-    return flameSignal;
-  }
-  else
-  {
-    printf("***ERROR Flame signal retrival failed.***\n");
-    return -1.0;
-  }
-}
+// float get_flame_signal()//NOT TESTED
+// {
+//   uint16_t result = node.readHoldingRegisters (0x000A , 1);//As per the S7800A1146 Display manual 
+//   if (result == node.ku8MBSuccess)
+//   {
+//     float flameSignal = node.getResponseBuffer(result);
+//     flameSignal = map(flameSignal,0,105,0,5);//As per the S7800A1146 Display manual 
+//     return flameSignal;
+//   }
+//   else
+//   {
+//     printf("***ERROR Flame signal retrival failed.***\n");
+//     return -1.0;
+//   }
+// }
 
 void User_Input_Main_Screen(int CURSOR)// Prints the Main Contact screen onto the LCD
 {
@@ -1954,7 +2029,7 @@ void Save_New_Contact(char txtDOC[], char NEWCONTACT[])//Saves what the user inp
 
 void memoryTest()
 {
-  int threshold = 3000;
+  int threshold = 1000;
   int memory = freeMemory();
   Serial.print(F("memoryTest() Free RAM = "));
   Serial.print(memory);
@@ -2006,7 +2081,7 @@ void initialize_RTC()
 
 void initialize_Modbus()
 {
-  node.begin(1, Serial);
+  node.begin(Honeywell_Modbus_Address, Serial);
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
 }
@@ -2014,7 +2089,7 @@ void initialize_Modbus()
 void initialize_LCD()
 {
   lcd.init(); 
-  lcd.begin(20, 4); // Initialize LCD screen (columns, rows)
+  lcd.begin(LCD_Columns, LCD_Rows);
   lcd.clear();
   lcd.backlight();
   lcd.setCursor(2, 1);
