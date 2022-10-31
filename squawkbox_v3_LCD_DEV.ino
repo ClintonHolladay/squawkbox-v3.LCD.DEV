@@ -1,8 +1,7 @@
-// squawkbox_v3.0.0 31 Oct 2022 @ 1430
+// squawkbox_v3.0.0 31 Oct 2022 @ 1500
 
 // WHAT GOT DONE:
-// Added in TODO comments. 
-
+// forgot Case Cart updated info... 
 
 // TODO **PRIORITY**:
 // Test
@@ -21,7 +20,9 @@
 // Add function to send a Flame signal text message.
 // Prompt when all contacts are inactive.
 
+//================== LICENSE ====================//
 // GNU GENERAL PUBLIC LICENSE Version 2, June 1991
+//================== LICENSE ====================//
 
                                // Library licensing information  //
 //#include <Arduino.h>         // GNU Lesser General Public    // Included automatically by the Arduino IDE. 
@@ -32,6 +33,10 @@
 #include <RTClib.h>            // MIT License
 #include <LibPrintf.h>         // MIT License
 #include <MemoryFree.h>        // GNU GENERAL PUBLIC LICENSE V2
+
+//*************************REMEMBER****************************************//
+// change hard coded default phone numbers for testing purposes!!! SD boot() and memoryTest().
+//*************************REMEMBER****************************************//
 
 #define printf(...) // Deletes ALL prinf() functions. This saves SRAM / increases program speed. 
 
@@ -87,6 +92,10 @@ static bool hlpcSent{};
 static char urlHeaderArray[100]; // Twilio end point URL (twilio might change this!) AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?
 static char contactFromArray1[25];// holds the phone number to receive  text messages
 static char conToTotalArray[60] {"To=%2b1"};// holds the customer phone numbers that will receive  text messages
+
+//example char urlHeaderArray[] = "AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?";
+//example char contactFromArray1[] = "From=%2b15034516078&";
+//example char conToTotalArray[] = "To=%2b17065755866&";
 
 // Bools used to maintain LCD screen until the user presses the button to go to the next screen
 static bool userInput{};
@@ -185,7 +194,8 @@ RTC_PCF8523 rtc;
 void setup() 
 {
   Serial.begin(9600);
-  Serial1.begin(19200);
+  Serial1.begin(19200);/* This functiion call sets up D18 as TX1 and D19 as RX1 on the Mega.
+                       In the PCB (TX1 is ran to PIN 7/RX1) and (RX1 is ran to PIN 8/TX1) on the SIM7000A */
   printf("This is squawkbox V3.LCD.0 sketch.\n");
   initialize_LCD();
   
@@ -1053,17 +1063,18 @@ void postTransmission() // user designated action required by the MODBUS library
 void readModbus()// getting faults from the FSG // ALL DELAYS ARE NECESSARY
 {
   uint16_t result;
-  for (int i = 0; i < 5; ++i) 
+  for (int i = 0; i < 5; ++i)/*iterates the check for a modbus signal due to a high fail rate without it 
+                                This ensures a much better communication between the squawk and the boiler programmer.*/
   {
-    result = node.readHoldingRegisters (0x0000, 1);
-    delay(100);
+    result = node.readHoldingRegisters (0x0000, 1);//0x0000 is the address of the first holding register (Honeywell)
+    delay(300);                                    // 1 is the quantity of holding registers to read. (Make sure this is set!!!)
     if (result == node.ku8MBSuccess)
     {
       break;
     }
   }
   delay(300);
-
+  
   if (result == node.ku8MBSuccess)
   {
     delay(300);
