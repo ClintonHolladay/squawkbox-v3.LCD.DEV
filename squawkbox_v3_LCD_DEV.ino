@@ -1,7 +1,8 @@
-// squawkbox_v3.0.0 31 Oct 2022 @ 1500
+// squawkbox_v3.0.0 02 Nov 2022 @ 1430
 
 // WHAT GOT DONE:
-// forgot Case Cart updated info... 
+// Corrected Load contacts bug from when I added in the remove a leading ',' code. 
+// Changed the EEPROM initialization key and address.
 
 // TODO **PRIORITY**:
 // Test
@@ -38,7 +39,7 @@
 // change hard coded default phone numbers for testing purposes!!! SD boot() and memoryTest().
 //*************************REMEMBER****************************************//
 
-#define printf(...) // Deletes ALL prinf() functions. This saves SRAM / increases program speed. 
+//#define printf(...) // Deletes ALL prinf() functions. This saves SRAM / increases program speed. 
 
 //Customer activated contact # ON/OFF definitions
 #define ACTIVE 1
@@ -162,10 +163,10 @@ enum EEPROMAlarmCode // Used to encode which alarm is to be saved into the EEPRO
 const int numberOfSavedFaults {400};
 const int eepromAlarmDataSize = sizeof(alarmVariable); 
 static int EEPROMinputCounter{}; // Used to keep track of where the next fault should be saved in the EEPROM
-const uint8_t EEPROMInitializationKey {69};
+const uint8_t EEPROMInitializationKey {42};
 
 //EEPROM addresses 0 - 4096 (8 bits each)
-const int EEPROMInitializationAddress {4020};
+const int EEPROMInitializationAddress {3700};
 const int EEPROMinputCounterAddress {4000};
 const int EEPROMLastFaultAddress {3600};
 const int contact1Address {3801};
@@ -264,7 +265,7 @@ void EEPROMalarmInput(int ALARM) // we are inputing into the EEPROM not SRAM
   alarmVariable writingSTRUCT;
   printf("EEPROMinputCounter at start of function = %i.\n\n", EEPROMinputCounter);
   DateTime now = rtc.now();
-  writingSTRUCT = {ALARM, now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second()};
+  writingSTRUCT = {ALARM, int(now.year()), now.month(), now.day(), now.hour(), now.minute(), now.second()};
   EEPROM.put(EEPROMinputCounter, writingSTRUCT);
   EEPROMinputCounter += eepromAlarmDataSize;
   printf("ALARM saved in EEPROM slot %i.\n", (EEPROMinputCounter/eepromAlarmDataSize));
@@ -928,7 +929,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
   fill_from_SD("to2.txt", contact2);
   if (contact2[0] > 0 && contact2Status) 
   {
-    if(conToTotalArray[3] == '\0')// We only want a "," if there is actually a number in the previous to#.txt file. 
+    if(conToTotalArray[7] == '\0')// We only want a "," if there is actually a number in the previous to#.txt file. 
     {
       strcat(conToTotalArray, contact2);
     }
@@ -942,7 +943,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
   fill_from_SD("to3.txt",contact3);
   if (contact3[0] > 0 && contact3Status) 
   {
-    if(conToTotalArray[3] == '\0')
+    if(conToTotalArray[7] == '\0')
     {
       strcat(conToTotalArray, contact3);
     }
@@ -956,7 +957,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
   fill_from_SD("to4.txt", contact4);
   if (contact4[0] > 0 && contact4Status) 
   {
-    if(conToTotalArray[3] == '\0')
+    if(conToTotalArray[7] == '\0')
     {
       strcat(conToTotalArray, contact4);
     }
@@ -970,7 +971,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
   fill_from_SD("to5.txt", contact5);
   if (contact5[0] > 0 && contact5Status) 
   {
-    if(conToTotalArray[3] == '\0')
+    if(conToTotalArray[7] == '\0')
     {
       strcat(conToTotalArray, contact5);
     }
@@ -984,7 +985,7 @@ void loadContacts()//Pull customer and Squawk phone numbers from the SD card and
   fill_from_SD("to6.txt", contact6);
   if (contact6[0] > 0 && contact6Status) 
   {
-    if(conToTotalArray[3] == '\0')
+    if(conToTotalArray[7] == '\0')
     {
       strcat(conToTotalArray, contact6);
     }
@@ -1322,7 +1323,7 @@ void User_Input_Contact_Screen(const char* SCREEN[], int CURSOR, char CONTACT[],
     lcd.print(SCREEN[3]);
 }
 
-void Contact_Edit_Screen( char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
+void Contact_Edit_Screen( const char* SCREEN[], int CURSOR, char CONTACT[], bool STATUS) 
 {//Once the user chooses to EDIT a specific contact this function will print that contact's EDIT data to the LCD.
     lcd.clear();
     lcd.setCursor(0,0);
