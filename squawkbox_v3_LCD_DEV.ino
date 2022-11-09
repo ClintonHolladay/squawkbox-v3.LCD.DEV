@@ -1,8 +1,7 @@
-// squawkbox_v3.0.0 02 Nov 2022 @ 1430
+// squawkbox_v3.0.0 09 Nov 2022 @ 1120
 
 // WHAT GOT DONE:
-// Corrected Load contacts bug from when I added in the remove a leading ',' code. 
-// Changed the EEPROM initialization key and address.
+// Added in the i2C addresses.
 
 // TODO **PRIORITY**:
 // Test
@@ -177,7 +176,7 @@ const int contact5Address {3805};
 const int contact6Address {3806};
 
 //================INSTANTIATION================//
-uint8_t LCD_I2C_Address {0x3F};
+uint8_t LCD_I2C_Address {0x3F};//The Adafruit Standard LCD default i2C address is 0x70. With NO jumpers on A0/A1/A2 on the back of the i2C backpack. 
 uint8_t LCD_Columns {20};
 uint8_t LCD_Rows {4};
 uint8_t Honeywell_Modbus_Address {1};
@@ -185,8 +184,7 @@ uint8_t Honeywell_Modbus_Address {1};
 ModbusMaster node;
 LiquidCrystal_I2C lcd(LCD_I2C_Address, LCD_Columns, LCD_Rows);
 File myFile; 
-RTC_PCF8523 rtc;
-// consider DateTime now = rtc.now() instantiation only once in the loop??? Heap frag concerns??
+RTC_PCF8523 rtc;//Default i2C address is 0x68 and cannot be changed. It is designated in the library.
 
 //=======================================================================//
 //================================SETUP()================================//
