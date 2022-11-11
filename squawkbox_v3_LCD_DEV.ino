@@ -1,7 +1,7 @@
-// squawkbox_v3.0.0 09 Nov 2022 @ 1120
+// squawkbox_v3.0.0 11 Nov 2022 @ 1605
 
 // WHAT GOT DONE:
-// Added in the i2C addresses.
+// Removed twilio end point for security. 
 
 // TODO **PRIORITY**:
 // Test
@@ -89,13 +89,13 @@ static bool HWAlarmSent{};
 static bool hlpcSent{};
 //static bool gasSent{};
 
-static char urlHeaderArray[100]; // Twilio end point URL (twilio might change this!) AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?
+static char urlHeaderArray[100]; // Twilio end point URL (twilio might change this!)
 static char contactFromArray1[25];// holds the phone number to receive  text messages
 static char conToTotalArray[60] {"To=%2b1"};// holds the customer phone numbers that will receive  text messages
 
-//example char urlHeaderArray[] = "AT+HTTPPARA="URL","http://relay-post-8447.twil.io/recipient_loop?";
-//example char contactFromArray1[] = "From=%2b15034516078&";
-//example char conToTotalArray[] = "To=%2b17065755866&";
+//example char urlHeaderArray[] = "AT+HTTPPARA="URL","http:// your endPoint HERE / Twilio Function HERE";
+//example char contactFromArray[] = "From=%2b1Phone#&";
+//example char conToTotalArray[] = "To=%2b1Phone#&";
 
 // Bools used to maintain LCD screen until the user presses the button to go to the next screen
 static bool userInput{};
