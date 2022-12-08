@@ -1,6 +1,7 @@
-// squawkbox_v3.1.0 23 Nov 2022 @ 1700
+// squawkbox_v3.1.0 23 Nov 2022 @ 1600
 
 // WHAT GOT DONE:
+// trying to figure out why the test V3 wont work...
 // started updating to the SquawxBox_v1.2 code. still doing INPUT_PULLUP
 
 
@@ -65,7 +66,7 @@ const int MAX485_DE {3};    //to modbus module
 const int MAX485_RE_NEG {2};//to modbus module
 const int SIMpin {A3};      // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
 //SerialPort #1 (Serial1) Default is pin19 RX1 and pin18 TX1 on the Mega. These are how the SIM7000A module communicates with the mega.
-uint8_t SD_CSpin {53};
+uint8_t SD_CSpin {10}; //could be 53 if PCB was changed
 
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 const int PLWCOoutletPin {17};
@@ -860,7 +861,7 @@ void boot_SD() //see if the card is present and can be initialized
     delay(5000);
     for(int i = 0; i < 4; ++i)
     {
-      if (!SD.begin(10)) 
+      if (!SD.begin(SD_CSpin))
       {
         //Serial.println(F("SD Module initialization failed!"));
         //add in a blink code fault on the box at the job site
