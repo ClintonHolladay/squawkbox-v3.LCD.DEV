@@ -1,13 +1,20 @@
-// squawkbox_v3.0.0 11 Nov 2022 @ 1605
+// squawkbox_v3.1.1 09 Dec 2022 @ 1145
 
 // WHAT GOT DONE:
-// Removed twilio end point for security. 
+// finished updating to the SquawxBox_v1.2 code. INPUT_PULLUP
+/* Fixed v3 initial firmware upload bug that caused a repeating reset of the microcontoller.
+  * The cause was an incomplete EEPROM initialization. The EEPROMPrefill() reads the contat#Status 
+  * (ACTIVE / INACTIVE) from the EEPROM but these had not yet been coded to store anything other 
+  * than the factory defauklt values at those addresses.*/
+
 
 // TODO **PRIORITY**:
 // Test
 // Field Deploy for testing
 
 // TODO **BACK BURNER**:
+// Finish the cell signal quality function.
+// Create #define(s) for turning ON/OFF the individual alarm functions for custimization.
 // *BUG* Holding down the pushbutton freaks it out. *FIX* add in another check to the if statement. digitalRead(pushbutton == HIGH (notBeingPushed)).
 // Remove rotary encoder bool, not useful I dont think. 
 // add in enum ScreenName to replace userInput bools. 
@@ -34,9 +41,9 @@
 #include <LibPrintf.h>         // MIT License
 #include <MemoryFree.h>        // GNU GENERAL PUBLIC LICENSE V2
 
-//*************************REMEMBER****************************************//
-// change hard coded default phone numbers for testing purposes!!! SD boot() and memoryTest().
-//*************************REMEMBER****************************************//
+//*************************REMEMBER***************************//
+// default phone number for testing purposes in memoryTest().
+//*************************REMEMBER***************************//
 
 //#define printf(...) // Deletes ALL prinf() functions. This saves SRAM / increases program speed. 
 
@@ -62,7 +69,7 @@ const int MAX485_DE {3};    //to modbus module
 const int MAX485_RE_NEG {2};//to modbus module
 const int SIMpin {A3};      // this pin is routed to SIM pin 12 for boot (DF Robot SIM7000A module)
 //SerialPort #1 (Serial1) Default is pin19 RX1 and pin18 TX1 on the Mega. These are how the SIM7000A module communicates with the mega.
-uint8_t SD_CSpin {53};
+uint8_t SD_CSpin {10}; //could be 53 if PCB was changed
 
 // Pins added for LCD development. These allow the LCD to reset after the alarm has been reset by the boiler operator
 const int PLWCOoutletPin {17};
@@ -176,7 +183,8 @@ const int contact5Address {3805};
 const int contact6Address {3806};
 
 //================INSTANTIATION================//
-uint8_t LCD_I2C_Address {0x3F};//The Adafruit Standard LCD default i2C address is 0x70. With NO jumpers on A0/A1/A2 on the back of the i2C backpack. 
+//uint8_t LCD_I2C_Address {0x3F}; 
+uint8_t LCD_I2C_Address {0x70};//The Adafruit Standard LCD default i2C address is 0x70. With NO jumpers on A0/A1/A2 on the back of the i2C backpack.
 uint8_t LCD_Columns {20};
 uint8_t LCD_Rows {4};
 uint8_t Honeywell_Modbus_Address {1};
@@ -198,13 +206,13 @@ void setup()
   printf("This is squawkbox V3.LCD.0 sketch.\n");
   initialize_LCD();
   
-  pinMode(low1, INPUT);
-  pinMode(low2, INPUT);
-  pinMode(alarmPin, INPUT);
-  pinMode(hplcIN, INPUT);
-  pinMode(hplcOUT, INPUT);
-  pinMode(PLWCOoutletPin, INPUT);
-  pinMode(SLWCOoutletPin, INPUT);
+  pinMode(low1, INPUT_PULLUP);//INPUT_PULLUP
+  pinMode(low2, INPUT_PULLUP);
+  pinMode(alarmPin, INPUT_PULLUP);
+  pinMode(hplcIN, INPUT_PULLUP);
+  pinMode(hplcOUT, INPUT_PULLUP);
+  pinMode(PLWCOoutletPin, INPUT_PULLUP);
+  pinMode(SLWCOoutletPin, INPUT_PULLUP);
   pinMode(MAX485_RE_NEG, OUTPUT);
   pinMode(MAX485_DE, OUTPUT);
   pinMode(SIMpin, OUTPUT);
@@ -214,12 +222,12 @@ void setup()
   pinMode (encoderPinB, INPUT);
   pinMode (pushButton, INPUT_PULLUP);
   
+  initialize_RTC();
   SIMboot();
   boot_SD();
   EEPROM_Prefill();
   loadContacts();
   initiateSim();
-  initialize_RTC();
   initialize_Modbus();
   
   Serial.print(F("Set-up Free RAM = "));
@@ -247,9 +255,14 @@ void loop()
   timedmsg();
   SMSRequest();
   User_Input_Access_Menu();
-  //printf("%u\n",millis());
+  //printf("%u\n",millis()); 
+                                      //Signal Quality Report values greater than -75dBm are acceptable. we want an rssi value of 18 or greater
+//  Serial1.print("AT+CSQ\r"); //<rssi> (0 == -115 dBm or less)  
+//  getResponse();                    //(1 == -111 dBm)
+//  delay(10000);                     //(2...30 == -110... -54 dBm)
+                                      //(31 == -52 dBm or greater)
+                                      //(99 == not known or not detectable)
 }
-
 
 //=======================================================================//
 //=======================================================================//
@@ -489,7 +502,7 @@ void primary_LW()
   static unsigned long alarmTime {};
   primaryCutoff = digitalRead(low1);
   PLWCOoutlet = digitalRead(PLWCOoutletPin);
-  if ((primaryCutoff == HIGH) && (PLWCOSent == 0))
+  if ((primaryCutoff == LOW) && (PLWCOSent == 0))
   {
     if (alarmSwitch == false)
     {
@@ -516,7 +529,7 @@ void primary_LW()
   }
   else
   {
-    if(!primaryCutoff && PLWCOoutlet && alarmSwitch)
+    if(primaryCutoff == HIGH && PLWCOoutlet == LOW && alarmSwitch)
     {
       alarmSwitch = false;
       PLWCOSent = 0;
@@ -533,7 +546,7 @@ void secondary_LW()
   static unsigned long alarmTime2 {};
   secondaryCutoff = digitalRead(low2);
   SLWCOoutlet = digitalRead(SLWCOoutletPin);
-  if ((secondaryCutoff == HIGH) && (SLWCOSent == 0))
+  if ((secondaryCutoff == LOW) && (SLWCOSent == 0))
   {
     if (alarmSwitch2 == false)
     {
@@ -563,7 +576,7 @@ void secondary_LW()
   }
   else
   {
-    if(!secondaryCutoff && SLWCOoutlet && alarmSwitch2)
+    if((secondaryCutoff == HIGH) && (SLWCOoutlet == LOW) && alarmSwitch2)
     {
       alarmSwitch2 = false;
       SLWCOSent = 0;
@@ -578,7 +591,7 @@ void Honeywell_alarm()
   static unsigned long difference3 {};
   static unsigned long alarmTime3 {};
   alarm = digitalRead(alarmPin);
-  if (alarm == HIGH && HWAlarmSent == 0)
+  if ((alarm == LOW) && (HWAlarmSent == 0))
   {
     if (alarmSwitch3 == false)
     {
@@ -613,7 +626,7 @@ void Honeywell_alarm()
   }
   else
   {
-    if(alarm == LOW && alarmSwitch3)
+    if((alarm == HIGH) && alarmSwitch3)
     {
       alarmSwitch3 = false;
       HWAlarmSent = 0;
@@ -630,7 +643,7 @@ void HLPC()
   static unsigned long alarmTime4 {};
   hlpcCOMMON = digitalRead(hplcIN);
   hlpcNC = digitalRead(hplcOUT);
-  if ((hlpcCOMMON == HIGH) && (hlpcNC == LOW) && (hlpcSent == 0))
+  if ((hlpcCOMMON == LOW) && (hlpcNC == HIGH) && (hlpcSent == 0))
   {
     if (alarmSwitch4 == false)
     {
@@ -660,8 +673,8 @@ void HLPC()
   }
   else
   {
-    if (hlpcNC && alarmSwitch4)
-    {
+    if ((hlpcNC == LOW && alarmSwitch4) || (hlpcCOMMON == HIGH && alarmSwitch4))//if ((hlpcNC == LOW && alarmSwitch4) || (hlpcCOMMON == HIGH && alarmSwitch4))
+    {//(hlpcCommon == HIGH && alarmSwitch4)Prevents false alarms caused by the in-series wiring of the boiler limit circuit
       alarmSwitch4 = false;
       hlpcSent = 0;
     }
@@ -677,7 +690,7 @@ void HLPC()
 //   static unsigned long alarmTime5 {};
 //   gasIN = digitalRead(gasINpin);
 //   gasOUT = digitalRead(gasOUTpin);
-//   if ((gasIN == HIGH) && (gasOUT == LOW) && (gasSent == 0))
+//   if ((gasIN == LOW) && (gasOUT == HIGH) && (gasSent == 0))
 //   {
 //     if (alarmSwitch5 == false)
 //     {
@@ -703,8 +716,8 @@ void HLPC()
 //   }
 //   else
 //   {
-//     if (gasOUT && alarmSwitch5)
-//     {
+//     if ((gasOUT == LOW && alarmSwitch5) || (gasIN == HIGH && alarmSwitch5))
+//     {//(gasIN == HIGH && alarmSwitch5)Prevents false alarms caused by the in-series wiring of the boiler limit circuit
 //       alarmSwitch5 = false;
 //       difference5 = 0;
 //       alarmTime5 = 0;
@@ -740,16 +753,16 @@ void sendSMS(char URL[], char to[], char from[], char body[])//SIM7000A module
   delay(4000);
 }
 
-// void getResponse() // serial monitor printing for troubleshooting REMOVE FROM PRODUCTION CODE
-// {
-//   unsigned char data {};
-//   while (Serial1.available())
-//   {
-//     data = Serial1.read();
-//     Serial.write(data);
-//     delay(5);
-//   }
-// }
+ //void getResponse() // serial monitor printing for troubleshooting REMOVE FROM PRODUCTION CODE
+ //{
+ //  unsigned char data {};
+ //  while (Serial1.available())
+ //  {
+ //    data = Serial1.read();
+ //    Serial.write(data);
+ //    delay(5);
+ //  }
+ //}
 
 void timedmsg() // daily timer message to ensure Squawk is still operational. For testing ONLY (REMOVE FROM PRODUCTION CODE)
 {
@@ -851,10 +864,10 @@ void boot_SD() //see if the card is present and can be initialized
     delay(5000);
     for(int i = 0; i < 4; ++i)
     {
-      if (!SD.begin(10)) 
+      if (!SD.begin(SD_CSpin))
       {
-        Serial.println(F("SD Module initialization failed!"));// Change for every new one!!!!!!! hard codded in   vvvvvvvvvvvvvv
-        sendSMS("AT+HTTPPARA=\"URL\",\"http://relay-post-8447.twil.io/recipient_loop?", "To=%2b16158122833&", "From=%2b19049808059&", "Body=SD%20Module%20Initialization%20Fail\"\r");
+        //Serial.println(F("SD Module initialization failed!"));
+        //add in a blink code fault on the box at the job site
         delay(3000);
       }
       else
@@ -873,7 +886,7 @@ void boot_SD() //see if the card is present and can be initialized
     {
       if(myFile.position() == 0)//Initialize the top data row of the CSV file if it has NOT been done already.
       {
-        myFile.println("Fault, UnixTime, Year, Month, Day, Hour, Minute, Second");
+        myFile.println("Fault, UnixTime, Year, Month, Day, Hour, Minute, Second");//File header
         myFile.close();
         printf("SD Card initialization complete.\n");
       }
@@ -1234,6 +1247,13 @@ void EEPROM_Prefill()// EEPROM initialization function
     {
       EEPROM.put(i, prefillSTRUCT);
     }
+    EEPROM.write(contact1Address, INACTIVE);
+    EEPROM.write(contact2Address, INACTIVE);
+    EEPROM.write(contact3Address, INACTIVE);
+    EEPROM.write(contact4Address, INACTIVE);
+    EEPROM.write(contact5Address, INACTIVE);
+    EEPROM.write(contact6Address, INACTIVE);
+
   //  alarmVariable readingSTRUCT;
   //  for ( int i = 0; i < EEPROMLastFaultAddress; i += eepromAlarmDataSize)
   //  {
