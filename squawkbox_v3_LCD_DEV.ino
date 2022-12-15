@@ -1,45 +1,42 @@
-// squawkbox_v3.1.1 14 Dec 2022 @ 1700
+// squawkbox_v3.1.2 15 Dec 2022 @ 1020
 
 // WHAT GOT DONE:
-// fixed library bug while porting over adafruit LCD screen.
-// set up first test V3 bread board.
-// changed some of the string messages.
-// changed pin out to be the same as V1.
-// found stackoverflow issue..... :(
+// Fixed stackoverflow issue!!!!! :) fill_From_SD() wasn't closing the .txt file (and not calling free()) if the file was empty to begin with. 
+// fixed "Set up complete" SMS failure. Forgot the '20' in the '%20' for the URL 'space' in the message body
+// Added a catch for if the phone munber in the .txt file is ever longer than 10 digits. 
 
 
-  // TODO **PRIORITY**:
-  // Test
-  // Field Deploy for testing
+// TODO **PRIORITY**:
+// Test
+// Field Deploy for testing
 
-  // TODO **BACK BURNER**:
-  // Finish the cell signal quality function.
-  // Create #define(s) for turning ON/OFF the individual alarm functions for custimization.
-  // *BUG* Holding down the pushbutton freaks it out. *FIX* add in another check to the if statement. digitalRead(pushbutton == HIGH (notBeingPushed)).
-  // Remove rotary encoder bool, not useful I dont think. 
-  // add in enum ScreenName to replace userInput bools. 
-  // Standardize function and variable names.
-  // Optimize variables.
-  // Add functions for Pump amps() / Aw Na box() / Blow down aquastat().
-  // Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
-  // Display blowdown reminder after 48 hours of no PLWCO.
-  // Send blow down text after 72 hours of no PLWCO.
-  // Add function to send a Flame signal text message.
-  // Prompt when all contacts are inactive.
+// TODO **BACK BURNER**:
+// Finish the cell signal quality function.
+// Create #define(s) for turning ON/OFF the individual alarm functions for custimization.
+// *BUG* Holding down the pushbutton freaks it out. *FIX* add in another check to the if statement. digitalRead(pushbutton == HIGH (notBeingPushed)).
+// Remove rotary encoder bool, not useful I dont think. 
+// add in enum ScreenName to replace userInput bools. 
+// Standardize function and variable names.
+// Add functions for Pump amps() / Aw Na box() / Blow down aquastat().
+// Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
+// Display blowdown reminder after 48 hours of no PLWCO.
+// Send blow down text after 72 hours of no PLWCO.
+//  // Add function to send a Flame signal text message.
+// Prompt when all contacts are inactive.
 
-  //================== LICENSE ====================//
-  // GNU GENERAL PUBLIC LICENSE Version 2, June 1991
-  //================== LICENSE ====================//
-  // 
-                               // Library licensing information  //
-//#include <Arduino.h>         // GNU Lesser General Public    // Included automatically by the Arduino IDE. 
-#include <SD.h>                // GNU General Public License V3
-#include <ModbusMaster.h>      // Apache License Version 2.0
-#include <EEPROM.h>            // GNU Lesser General Public
-#include <RTClib.h>            // MIT License
-#include <LibPrintf.h>         // MIT License
-#include <MemoryFree.h>        // GNU GENERAL PUBLIC LICENSE V2
-#include <Adafruit_LiquidCrystal.h>
+//================== LICENSE ====================//
+// GNU GENERAL PUBLIC LICENSE Version 2, June 1991
+//================== LICENSE ====================//
+// 
+                                    // Library licensing information  //
+//#include <Arduino.h>              // GNU Lesser General Public    // Included automatically by the Arduino IDE. 
+#include <SD.h>                     // GNU General Public License V3
+#include <ModbusMaster.h>           // Apache License Version 2.0
+#include <EEPROM.h>                 // GNU Lesser General Public
+#include <RTClib.h>                 // MIT License
+#include <LibPrintf.h>              // MIT License
+#include <MemoryFree.h>             // GNU GENERAL PUBLIC LICENSE V2
+#include <Adafruit_LiquidCrystal.h> // MIT License
 
 //*************************REMEMBER***************************//
 // default phone number for testing purposes in memoryTest().
@@ -1040,19 +1037,27 @@ void fill_from_SD(char file_name[], char CONTACT[])
     myFile = SD.open(file_name, FILE_WRITE);
     if (myFile)
     {
-        int i{}; // reconsider this naming???
+        int i{};
         myFile.seek(0);
-        if (myFile.available())
+
+        while (myFile.available())
         {
-            while (myFile.available())
-            {
-                char c = myFile.read();  //gets one byte from SPI buffer
-                CONTACT[i] = c;
-                i++;
-            }
-            myFile.close();
-            CONTACT[i] = '\0'; //may not be needed
+           if ((i > 0) && (CONTACT[0] != 'F') && (CONTACT[0] != 'A') && (i == 10))
+           {
+               printf("Phone number in %s is too long. Please only use a 10 digit number.\n", file_name);
+               break;
+           }
+           char c = myFile.read();  //gets one byte from SPI buffer
+           CONTACT[i] = c;
+           i++;
+           if ((CONTACT[0] != 'F') && (CONTACT[0] != 'A') && (i == 10))
+           {
+               CONTACT[i] = '\0'; //may not be needed
+           }
         }
+
+        myFile.close();
+       
         printf("CONTACT is: ");
         Serial.println(CONTACT);
     }
@@ -1201,7 +1206,7 @@ void initiateSim()// ALL DELAYS ARE NECESSARY
     delay(100);
     Serial1.print("AT+CNMI=2,2,0,0,0\r"); //New SMS Message Indications
     delay(100);
-    sendSMS(urlHeaderArray, contactFromArray1, conToTotalArray, "Body=SquawkBox%Setup%20Complete\"\r");
+    sendSMS(urlHeaderArray, conToTotalArray, contactFromArray1, "Body=SquawkBox%20Setup%20Complete\"\r");
     delay(2000);
     printf("initiateSim() complete.\n");
 }
