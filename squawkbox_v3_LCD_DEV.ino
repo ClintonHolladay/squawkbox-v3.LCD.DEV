@@ -1,33 +1,40 @@
-// squawkbox_v3.1.2 15 Dec 2022 @ 1020
+#define VERSION "squawkbox_v3.1.3 16 Dec 2022 @ 1630.\n"
 
 // WHAT GOT DONE:
-// Fixed stackoverflow issue!!!!! :) fill_From_SD() wasn't closing the .txt file (and not calling free()) if the file was empty to begin with. 
-// fixed "Set up complete" SMS failure. Forgot the '20' in the '%20' for the URL 'space' in the message body
-// Added a catch for if the phone munber in the .txt file is ever longer than 10 digits. 
+// In the process of testing. 
+// Bread board testing complete.
+// Discovered that I am at fault for the stack overflow issue from yesterday, poor Marshall.  
+// Deployed for testing to the boiler school room.
+/* DJ found a bug while attempting to change a phone number. He used the REDO 
+   * button and then tried to use the SAVE button right after. I found that the "selector" 
+   * variable was not defaulting back to 0 after each use of the button press at that menu location.*/
+// Removed rotary encoder bool, not useful I dont think.
+/* Fixed BUG wheren holding down the pushbutton freaks it out. 
+   *added in another check to the if statement. digitalRead(pushbutton == HIGH (notBeingPushed)).*/
+// Added #define VERSION to ensure version tracking on each unit.
 
 
 // TODO **PRIORITY**:
-// Test
-// Field Deploy for testing
+// Fix rotary encoder choppyness.
+
 
 // TODO **BACK BURNER**:
 // Finish the cell signal quality function.
-// Create #define(s) for turning ON/OFF the individual alarm functions for custimization.
-// *BUG* Holding down the pushbutton freaks it out. *FIX* add in another check to the if statement. digitalRead(pushbutton == HIGH (notBeingPushed)).
-// Remove rotary encoder bool, not useful I dont think. 
+// Add Fault code to data logging.
+// Create #define(s) for turning ON/OFF the individual alarm functions for custimization. 
 // add in enum ScreenName to replace userInput bools. 
 // Standardize function and variable names.
 // Add functions for Pump amps() / Aw Na box() / Blow down aquastat().
 // Cycle count function to divide the number of cycles by the last x number of hours to provide a current cycle rate.
 // Display blowdown reminder after 48 hours of no PLWCO.
 // Send blow down text after 72 hours of no PLWCO.
-//  // Add function to send a Flame signal text message.
+// Add function to send a Flame signal text message.
 // Prompt when all contacts are inactive.
 
 //================== LICENSE ====================//
 // GNU GENERAL PUBLIC LICENSE Version 2, June 1991
 //================== LICENSE ====================//
-// 
+
                                     // Library licensing information  //
 //#include <Arduino.h>              // GNU Lesser General Public    // Included automatically by the Arduino IDE. 
 #include <SD.h>                     // GNU General Public License V3
@@ -77,7 +84,7 @@ const int encoderPinA{ 44 }; // DT  // Rotary encoder pins //
 const int encoderPinB{ 46 }; // CLK //=====================//
 static int Cursor{};//Making this a global allowed for saving the cursor position when EXITing the contact menus
 
-const int debounceInterval{ 3000 };//NEEDS TO BE MADE CHANGEABLE ON SD CARD
+const int debounceInterval{ 3000 };//NEEDS TO BE MADE CHANGEABLE ON LCD
                                   // to prevent false alarms from electrical noise and also prevents repeat messages from bouncing PLWCOs.   
                                   // Setting this debounce too high will prevent the annunciation of instantaneous alarms like a bouncing LWCO.
 const char PrimaryString[]{ "PRIMARY LOW WATER" };     //====================================//
@@ -94,7 +101,7 @@ static bool hlpcSent{};
 //static bool gasSent{};
 
 static char urlHeaderArray[100]; // Twilio end point URL (twilio might change this!)
-static char contactFromArray1[25];// holds the phone number to receive  text messages
+static char contactFromArray1[25];// holds the phone number to receive text messages
 static char conToTotalArray[60]{ "To=%2b1" };// holds the customer phone numbers that will receive  text messages
 
 //example char urlHeaderArray[] = "AT+HTTPPARA="URL","http:// your endPoint HERE / Twilio Function HERE";
@@ -107,7 +114,6 @@ static bool userInput2{};
 static bool userInput3{};
 static bool userInput4{};
 static bool faultHistory{};
-static bool stopRotaryEncoder{};
 
 // Customer phone numbers
 static char contact1[11]{ "1111111111" };
@@ -158,8 +164,7 @@ enum EEPROMAlarmCode // Used to encode which alarm is to be saved into the EEPRO
 //    ContactMenu,
 //    ContactEdit,
 //    ContactDecide 
-// };
-// ScreenName currentscreen {Home};
+// };ScreenName currentscreen {Home};
 
 
 //EEPROM variables
@@ -200,7 +205,7 @@ void setup()
     Serial.begin(9600);
     Serial1.begin(19200);/* This functiion call sets up D18 as TX1 and D19 as RX1 on the Mega.
                          In the PCB (TX1 is ran to PIN 7/RX1) and (RX1 is ran to PIN 8/TX1) on the SIM7000A */
-    printf("This is squawkbox V3.LCD.0 sketch.\n");
+    printf("%s\n", VERSION);
     initialize_LCD();
 
     pinMode(low1, INPUT_PULLUP);//INPUT_PULLUP
@@ -216,7 +221,7 @@ void setup()
     digitalWrite(MAX485_RE_NEG, 0);
     digitalWrite(MAX485_DE, 0);
     pinMode(encoderPinA, INPUT);
-    pinMode(encoderPinB, INPUT);
+    pinMode(encoderPinB, INPUT); 
     pinMode(pushButton, INPUT_PULLUP);
 
     initialize_RTC();
@@ -1394,7 +1399,7 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
     }
     /*  Once userInput has been receive d and the debounce time has passed we ! the userInput bool and turn
      *  off the LCDTimerSwitch to stop running through the timer code until a new userinput is receive d.*/
-    if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && !userInput && !userInput2)
+    if ((digitalRead(pushButton) == HIGH) && LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && !userInput && !userInput2)
     {
         delay(50);//not needed?
         userInput = true;
@@ -1509,11 +1514,11 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
         LCDTimerSwitch = true;
         whichContactToEdit = 0;
     }
-    if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && userInput && !userInput2)
+    if ((digitalRead(pushButton) == HIGH) && LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay && userInput && !userInput2)
     {
         userInput2 = true;
         LCDTimerSwitch = false;
-        if (Cursor == 0) // TURN INTO A SWITCH CASE*************************************************************************************
+        if (Cursor == 0) // TURN INTO A SWITCH CASE***********************
         {
             faultHistory = true;
             EEPROMalarmPrint(Cursor, 0);
@@ -1588,7 +1593,7 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
             LCDdebounce = millis();
             LCDTimerSwitch = true;
         }
-        if (LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
+        if ((digitalRead(pushButton) == HIGH) && LCDTimerSwitch && (millis() - LCDdebounce) > debounceDelay)
         {
             userInput3 = true;
             LCDTimerSwitch = false;
@@ -1684,7 +1689,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
             LCDdebounce2 = millis();
             LCDTimerSwitch2 = true;
         }
-        if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
+        if ((digitalRead(pushButton) == HIGH) && LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
         {
             LCDTimerSwitch2 = false;
             if (Cursor2 == 1)// TURN CONTACT ACTIVE/INACTIVE
@@ -1736,7 +1741,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                        created so that if this screen is left open, it will time out and default back to the Fault
                        screen after 180sec.*/
     {
-        static int i{};
+        static int i{};//Keeps track of the location of the cursor when changing the phone #. 
         static bool timerSwitch{ false };
         static const unsigned long threemintimer{ 180000 };  //this timer turns off the editing display if left open
         static unsigned long difference6{};
@@ -1814,8 +1819,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
             lcd.setCursor(Cursor2, 1);
         }
         static char newContact[11];
-        //if(newContact[10] != '\0')newContact[10] = '\0';
-        static char newDigit{ 48 };
+        static char newDigit{ 48 }; //ASCII
         n2 = digitalRead(encoderPinA);
         //Serial.println(freeMemory());
         if ((encoderPinALast2 == LOW) && (n2 == HIGH))//Increment the new digit when the rotary encoder is turned.
@@ -1823,19 +1827,21 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
             if (digitalRead(encoderPinB) == LOW)
             {
                 //Counter Clockwise turn 
-                newDigit--;                              //CONTACT NUMBER EDITING MENU//
-                if (newDigit < 48)                           //====================//
+                newDigit--;  
+                delay(50);                              //CONTACT NUMBER EDITING MENU//
+                if (newDigit < '0')                         //====================//
                 {                                           //CURRENT#  1234567890//
-                    newDigit = 57;                             //ENTER NEW#0|        // (|) = blinking cursor
+                    newDigit = 57;                          //ENTER NEW#0|        // (|) = blinking cursor
                 }                                           //  SAVE#    TIME 180 //
-                lcd.setCursor(Cursor2, 1);                   //  REDO#    EXIT     //
+                lcd.setCursor(Cursor2, 1);                  //  REDO#    EXIT     //
                 lcd.print(newDigit);                        //====================// 
                 lcd.setCursor(Cursor2, 1);
             }
             else //Clockwise turn
             {
                 newDigit++;
-                if (newDigit == 58)
+                delay(50);
+                if (newDigit > '9')
                 {
                     newDigit = 48;
                 }
@@ -1942,64 +1948,58 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                         }
                     }
                     static int selector{};
-                    //Serial.println(freeMemory());
-                    if (!stopRotaryEncoder)//I dont think this "stopRotaryEncoder" does what I wanted it to do. 
+                    //delay(20);
+                    n2 = digitalRead(encoderPinA);
+                    if ((encoderPinALast2 == LOW) && (n2 == HIGH))
                     {
-                        //delay(20);
-                        n2 = digitalRead(encoderPinA);
-                        if ((encoderPinALast2 == LOW) && (n2 == HIGH))
+                        if (digitalRead(encoderPinB) == LOW)
                         {
-                            if (digitalRead(encoderPinB) == LOW)
+                            //Counter Clockwise turn
+                            selector--;                      //CONTACT NUMBER SAVE/REDO MENU//
+                            delay(20);                          //====================//
+                            if (selector < 0)                   //CURRENT#  1234567890//
+                            {                                   //ENTER NEW#6158122833//
+                                selector = 2;                   //->SAVE#    TIME 180 //
+                            }                                   //  REDO#    EXIT     //
+                        }                                       //====================//
+                        else //Clockwise turn
+                        {
+                            selector++;
+                            delay(20);
+                            if (selector == 3)
                             {
-                                //Counter Clockwise turn
-                                selector--;                      //CONTACT NUMBER SAVE/REDO MENU//
-                                delay(20);                          //====================//
-                                if (selector < 0)                    //CURRENT#  1234567890//
-                                {                                   //ENTER NEW#6158122833//
-                                    selector = 2;                     //->SAVE#    TIME 180 //
-                                }                                   //  REDO#    EXIT     //
-                            }                                     //====================//
-                            else //Clockwise turn
-                            {
-                                selector++;
-                                delay(20);
-                                if (selector == 3)
-                                {
-                                    selector = 0;
-                                }
-                            }
-                            switch (selector)
-                            {
-                            case 0: lcd.setCursor(0, 2); lcd.print("-"); lcd.setCursor(1, 2); lcd.print(">");
-                                lcd.setCursor(0, 3); lcd.print(" "); lcd.setCursor(1, 3); lcd.print(" ");
-                                lcd.setCursor(8, 3); lcd.print(" "); lcd.setCursor(9, 3); lcd.print(" ");
-                                break;
-                            case 1: lcd.setCursor(0, 2); lcd.print(" "); lcd.setCursor(1, 2); lcd.print(" ");
-                                lcd.setCursor(0, 3); lcd.print("-"); lcd.setCursor(1, 3); lcd.print(">");
-                                lcd.setCursor(8, 3); lcd.print(" "); lcd.setCursor(9, 3); lcd.print(" ");
-                                break;
-                            case 2: lcd.setCursor(0, 2); lcd.print(" "); lcd.setCursor(1, 2); lcd.print(" ");
-                                lcd.setCursor(0, 3); lcd.print(" "); lcd.setCursor(1, 3); lcd.print(" ");
-                                lcd.setCursor(8, 3); lcd.print("-"); lcd.setCursor(9, 3); lcd.print(">");
-                                break;
-                            default:
-                                break;
+                                selector = 0;
                             }
                         }
-                        encoderPinALast2 = n2;
+                        switch (selector)
+                        {
+                         case 0: lcd.setCursor(0, 2); lcd.print("-"); lcd.setCursor(1, 2); lcd.print(">");
+                                 lcd.setCursor(0, 3); lcd.print(" "); lcd.setCursor(1, 3); lcd.print(" ");
+                                 lcd.setCursor(8, 3); lcd.print(" "); lcd.setCursor(9, 3); lcd.print(" ");
+                            break;
+                         case 1: lcd.setCursor(0, 2); lcd.print(" "); lcd.setCursor(1, 2); lcd.print(" ");
+                                 lcd.setCursor(0, 3); lcd.print("-"); lcd.setCursor(1, 3); lcd.print(">");
+                                 lcd.setCursor(8, 3); lcd.print(" "); lcd.setCursor(9, 3); lcd.print(" ");
+                            break;
+                         case 2: lcd.setCursor(0, 2); lcd.print(" "); lcd.setCursor(1, 2); lcd.print(" ");
+                                 lcd.setCursor(0, 3); lcd.print(" "); lcd.setCursor(1, 3); lcd.print(" ");
+                                 lcd.setCursor(8, 3); lcd.print("-"); lcd.setCursor(9, 3); lcd.print(">");
+                            break;
+                        default:
+                            break;
+                        }
                     }
+                    encoderPinALast2 = n2;
 
                     if (digitalRead(pushButton) == LOW && LCDTimerSwitch2 == false)//user has now chosen SAVE / REDO / or EXIT
                     {
-                        stopRotaryEncoder = true;
                         LCDdebounce2 = millis();
                         LCDTimerSwitch2 = true;
                     }
-                    if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
+                    if ((digitalRead(pushButton) == HIGH) && LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
                     {
-                        Serial.print(F("Free RAM = "));
+                        Serial.print(F("After contact edit Free RAM = "));
                         Serial.println(freeMemory());
-                        stopRotaryEncoder = false;
                         LCDTimerSwitch2 = false;
                         if (selector == 0)// SAVE NEW CONTACT 
                         {
@@ -2035,6 +2035,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                             Cursor2 = 10;
                             Contact_Edit_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS);
                             timerStart = millis();
+                            selector = 0;
                         }
                         else if (selector == 2)//EXIT
                         {
@@ -2042,6 +2043,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                             userInput3 = false;
                             timerSwitch = false;
                             Cursor2 = 1;
+                            selector = 0;
                             User_Input_Contact_Screen(contactScreen, 1, CONTACT, CONTACTSTATUS, CONTACTNAME);
                         }
                     }
