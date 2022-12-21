@@ -1,18 +1,8 @@
-#define VERSION "squawkbox_v3.1.3 16 Dec 2022 @ 1630.\n"
+#define VERSION "squawkbox_v3.1.3 21 Dec 2022 @ 1630.\n"
 
 // WHAT GOT DONE:
-// In the process of testing. 
-// Bread board testing complete.
-// Discovered that I am at fault for the stack overflow issue from yesterday, poor Marshall.  
-// Deployed for testing to the boiler school room.
-/* DJ found a bug while attempting to change a phone number. He used the REDO 
-   * button and then tried to use the SAVE button right after. I found that the "selector" 
-   * variable was not defaulting back to 0 after each use of the button press at that menu location.*/
-// Removed rotary encoder bool, not useful I dont think.
-/* Fixed BUG wheren holding down the pushbutton freaks it out. 
-   *added in another check to the if statement. digitalRead(pushbutton == HIGH (notBeingPushed)).*/
-// Added #define VERSION to ensure version tracking on each unit.
-
+// Trying to fix rotary encoder choppyness. Got new Adafruit encoder. Seems to work better.
+// Trying to make it possible to be able to hold down the button if you mess up the phone number. LOC 1851.
 
 // TODO **PRIORITY**:
 // Fix rotary encoder choppyness.
@@ -220,8 +210,8 @@ void setup()
     pinMode(SIMpin, OUTPUT);
     digitalWrite(MAX485_RE_NEG, 0);
     digitalWrite(MAX485_DE, 0);
-    pinMode(encoderPinA, INPUT);
-    pinMode(encoderPinB, INPUT); 
+    pinMode(encoderPinA, INPUT_PULLUP);
+    pinMode(encoderPinB, INPUT_PULLUP);
     pinMode(pushButton, INPUT_PULLUP);
 
     initialize_RTC();
@@ -1414,9 +1404,9 @@ void User_Input_Access_Menu() //Controls the logic behind the functionality of t
     if (userInput && !userInput2)//change and log the position of the cursor on the MAIN screen
     {
         n = digitalRead(encoderPinA); // make into a function with the number of lines as a parameter
-        if ((encoderPinALast == LOW) && (n == HIGH))
+        if ((encoderPinALast == HIGH) && (n == LOW))
         {
-            if (digitalRead(encoderPinB) == LOW)
+            if (digitalRead(encoderPinB) == HIGH)
             {
                 delay(10);//UI tuning. Makes the display user's interaction lees choppy.
                 //Counter Clockwise turn
@@ -1822,13 +1812,14 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
         static char newDigit{ 48 }; //ASCII
         n2 = digitalRead(encoderPinA);
         //Serial.println(freeMemory());
-        if ((encoderPinALast2 == LOW) && (n2 == HIGH))//Increment the new digit when the rotary encoder is turned.
-        {                                             //Display new digit to the screen.
-            if (digitalRead(encoderPinB) == LOW)
+        if ((encoderPinALast2 == HIGH) && (n2 == LOW))//Increment the new digit when the rotary encoder is turned.
+        {
+            //delay(30);                                            //Display new digit to the screen.
+            if (digitalRead(encoderPinB) == HIGH)
             {
                 //Counter Clockwise turn 
                 newDigit--;  
-                delay(50);                              //CONTACT NUMBER EDITING MENU//
+                //delay(50);                              //CONTACT NUMBER EDITING MENU//
                 if (newDigit < '0')                         //====================//
                 {                                           //CURRENT#  1234567890//
                     newDigit = 57;                          //ENTER NEW#0|        // (|) = blinking cursor
@@ -1840,7 +1831,7 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
             else //Clockwise turn
             {
                 newDigit++;
-                delay(50);
+                //delay(50);
                 if (newDigit > '9')
                 {
                     newDigit = 48;
@@ -1857,8 +1848,8 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
             LCDdebounce2 = millis();
             LCDTimerSwitch2 = true;
         }
-        if (LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2)
-        {
+        if ((LCDTimerSwitch2 && (millis() - LCDdebounce2) > debounceDelay2) || (i == 10))// trying to make to where you can hold the button down 
+        {                                                                                // if you mees up the number. 
             LCDTimerSwitch2 = false;
             Cursor2++;
             if (Cursor2 < 10)
@@ -1870,16 +1861,19 @@ void Contact_Edit_Menu(char CONTACT[], char txtDOC[], int ADDRESS, bool& CONTACT
                 Cursor2 = 10;
             }
             //static int i {}; THIS WAS REDECLARED HIGHER UP////////////////
-            newContact[i] = newDigit;//Save new digit into temp variable
-            i++;
-            newDigit = 48; //ASCII '48' == 0 (defaults new LCD digit to 0)
+            if (i != 10)
+            {
+                newContact[i] = newDigit;//Save new digit into temp variable
+                i++;
+                newDigit = 48; //ASCII '48' == 0 (defaults new LCD digit to 0)
+            }
             if (i < 10)
             {
                 lcd.setCursor(Cursor2, 1);
                 lcd.print(newDigit);
                 lcd.setCursor(Cursor2, 1);
             }
-            if (i == 10)//User has entered 10 digits and is done with the new phone number, he now needs the SAVE/REDO screen
+            if ((i == 10) && (digitalRead(pushButton) == HIGH))//User has entered 10 digits and is done with the new phone number, he now needs the SAVE/REDO screen
             {
                 printf("Inside the if(i == 10) condition.\n");
                 i = 0;
